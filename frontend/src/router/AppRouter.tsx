@@ -4,6 +4,7 @@ import Home from "../pages/Home";
 import Post from "../pages/Post";
 import Landing from "../pages/LoginORregister";
 import Register from "../pages/Register";
+import Login from "../pages/Login";
 
 function AppRouter() {
   return (
@@ -27,6 +28,7 @@ function AppRouter() {
         <Route path="/post" element={<Post />} />
         <Route path="/landing" element={<Landing />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
         <Route path="*" element={<h2 className=" text-white">Page non trouvée</h2>} />
       </Routes>
     </BrowserRouter>

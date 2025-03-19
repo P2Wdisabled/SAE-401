@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Dto\Payload\CreatePostPayload;
 use App\Repository\PostRepository;
+use App\Repository\UserRepository;
 use App\Service\PostService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,7 +14,6 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class PostController extends AbstractController
 {
-    // GET existant (n’oubliez pas d’ajouter format: 'json' si ce n'est pas déjà fait)
     #[Route('/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
     public function index(Request $request, PostRepository $postRepository): Response
     {
@@ -34,21 +34,30 @@ class PostController extends AbstractController
         ]);
     }
 
-    // Nouvelle route pour créer un post
     #[Route('/posts', name: 'posts.create', methods: ['POST'], format: 'json')]
-    public function create(Request $request, ValidatorInterface $validator, PostService $postService): Response
-    {
-        // Récupération des données JSON envoyées
-        $data = json_decode($request->getContent(), true);
+    public function create(
+        Request $request, 
+        ValidatorInterface $validator, 
+        PostService $postService,
+        UserRepository $userRepository
+    ): Response {
+        $session = $request->getSession();
+        $userId = $session->get('user_id');
+        if (!$userId) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
 
-        // Mapping dans le DTO
+        $user = $userRepository->find($userId);
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur introuvable'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
         $payload = new CreatePostPayload();
         $payload->setContent($data['content'] ?? null);
 
-        // Déclenche la validation
         $errors = $validator->validate($payload);
         if (count($errors) > 0) {
-            // Construction d'un tableau d'erreurs
             $errorMessages = [];
             foreach ($errors as $error) {
                 $errorMessages[$error->getPropertyPath()] = $error->getMessage();
@@ -56,13 +65,8 @@ class PostController extends AbstractController
             return $this->json($errorMessages, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        // Débogage : décommentez la ligne ci-dessous pour vérifier le mapping
-        // dd($payload);
+        $postService->create($payload, $user);
 
-        // Création du post via le service
-        $postService->create($payload);
-
-        // Retour d'une réponse vide avec le code HTTP 201
         return new Response('', Response::HTTP_CREATED);
     }
 }

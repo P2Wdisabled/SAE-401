@@ -14,6 +14,8 @@ class PostRepository extends ServiceEntityRepository
         parent::__construct($registry, Post::class);
     }
 
+    
+
     public function paginateAllOrderedByLatest(int $offset, int $count): Paginator
     {
         $query = $this->createQueryBuilder('p')

@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import FormInput from "../ui/FormInput";
 import useCheckToken from "../components/useCheckToken"; // Adapté selon votre arborescence
 
-function Register() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+function Login() {
   const [email, setEmail] = useState("");
-  const [passwordStrength, setPasswordStrength] = useState("");
-  useCheckToken();
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
   const navigate = useNavigate();
+
+  // Redirige si un token existe déjà dans le localStorage
+  useCheckToken();
 
   // Vérifie que l'email est au bon format
   const isEmailValid = (email: string): boolean => {
@@ -27,74 +29,51 @@ function Register() {
     return password.length >= minLength && hasDigit && hasUpper && hasLower && hasSpecial;
   };
 
-  // Calcule la force du mot de passe pour affichage en temps réel
-  const checkPasswordStrength = (password: string): string => {
-    let strengthScore = 0;
-    if (password.length >= 8) strengthScore++;
-    if (/[A-Z]/.test(password)) strengthScore++;
-    if (/[a-z]/.test(password)) strengthScore++;
-    if (/[0-9]/.test(password)) strengthScore++;
-    if (/[\W_]/.test(password)) strengthScore++;
-
-    if (strengthScore <= 2) return "Faible";
-    if (strengthScore === 3 || strengthScore === 4) return "Moyen";
-    if (strengthScore === 5) return "Fort";
-    return "";
-  };
-
   // Gère la soumission du formulaire
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError("");
 
-    if (!isEmailValid(email)) {
-      alert("Email non valide");
+    // Validation côté client
+    if (!isEmailValid(email) || !isPasswordValid(password)) {
+      setError("Email ou mot de passe incorrect");
       return;
     }
 
-    if (!isPasswordValid(password)) {
-      alert("Le mot de passe ne respecte pas la politique de sécurité");
-      return;
-    }
-
-    const payload = { username, email, password };
+    const payload = { email, password };
 
     try {
-      const response = await fetch("http://localhost:8080/register", {
+      const response = await fetch("http://localhost:8080/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (response.status === 201) {
-        navigate("/login");
+      if (response.ok) {
+        const data = await response.json();
+        // Stocker le token JWT dans le localStorage
+        localStorage.setItem("token", data.token);
+        navigate("/home");
       } else {
-        alert("Erreur lors de l'inscription");
+        setError("Email ou mot de passe incorrect");
       }
     } catch (error) {
       console.error("Erreur lors de la requête:", error);
-      alert("Erreur lors de la requête");
+      setError("Erreur lors de la requête, veuillez réessayer plus tard.");
     }
   };
 
-  // Met à jour le mot de passe et sa force en temps réel
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const pwd = e.target.value;
-    setPassword(pwd);
-    setPasswordStrength(checkPasswordStrength(pwd));
+    setPassword(e.target.value);
   };
 
   return (
     <div className="min-h-screen bg-[#17202A] text-white flex flex-col items-center justify-center p-4">
-      <h1 className="text-2xl font-bold mb-8">Créer votre compte</h1>
+      <h1 className="text-2xl font-bold mb-8 max-w-xl">
+        Pour Commencer, entrez votre numéro de téléphone, votre adresse email ou votre nom d’utilisateur
+      </h1>
 
       <form className="w-full max-w-sm flex flex-col gap-4 mb-8" onSubmit={handleSubmit}>
-        <FormInput
-          label="Nom d'utilisateur"
-          type="text"
-          value={username}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
-        />
-
         <FormInput
           label="Email"
           type="email"
@@ -108,11 +87,9 @@ function Register() {
           value={password}
           onChange={handlePasswordChange}
         />
-        {password && (
-          <div className="text-sm">
-            Force du mot de passe : <span>{passwordStrength}</span>
-          </div>
-        )}
+
+        {/* Affichage du message d'erreur en cas d'informations erronées */}
+        {error && <p className="text-red-500 text-sm">{error}</p>}
 
         <div className="flex w-full max-w-sm justify-between">
           <Link to="/landing">
@@ -137,7 +114,7 @@ function Register() {
                          active:bg-gray-300 
                          transition"
           >
-            S'inscrire
+            Se connecter
           </button>
         </div>
       </form>
@@ -145,4 +122,4 @@ function Register() {
   );
 }
 
-export default Register;
+export default Login;
