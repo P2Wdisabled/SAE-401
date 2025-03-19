@@ -1,38 +1,68 @@
-// src/Controller/PostController.php
 <?php
+
 namespace App\Controller;
 
+use App\Dto\Payload\CreatePostPayload;
 use App\Repository\PostRepository;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Annotation\Route;
+use App\Service\PostService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
-#[Route('/posts', name: 'posts.')]
 class PostController extends AbstractController
 {
-    #[Route('', name: 'index', methods: ['GET'], defaults: ['_format' => 'json'])]
-    public function index(PostRepository $postRepository, Request $request): Response
+    // GET existant (n’oubliez pas d’ajouter format: 'json' si ce n'est pas déjà fait)
+    #[Route('/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
+    public function index(Request $request, PostRepository $postRepository): Response
     {
-        // Récupération de la page depuis les query params (page 1 par défaut)
-        $page = max(1, (int)$request->query->get('page', 1));
-        $limit = 50;
-        $offset = ($page - 1) * $limit;
+        $page = $request->query->getInt('page', 1);
+        $count = 50;
+        $offset = ($page - 1) * $count;
 
-        // Récupération des posts paginés
-        $posts = $postRepository->findPostsPaginated($offset, $limit);
+        $paginator = $postRepository->paginateAllOrderedByLatest($offset, $count);
 
-        // Comptage total des posts en base
-        $totalPostsCount = $postRepository->count([]);
-
-        // Calcul des pages précédente et suivante
         $previousPage = $page > 1 ? $page - 1 : null;
-        $nextPage = ($offset + $limit < $totalPostsCount) ? $page + 1 : null;
+        $totalPostsCount = $paginator->count();
+        $nextPage = (($page * $count) < $totalPostsCount) ? $page + 1 : null;
 
         return $this->json([
-            'posts' => $posts,
+            'posts'         => $paginator,
             'previous_page' => $previousPage,
-            'next_page' => $nextPage
-        ], Response::HTTP_OK, [], ['groups' => 'post']);
+            'next_page'     => $nextPage,
+        ]);
+    }
+
+    // Nouvelle route pour créer un post
+    #[Route('/posts', name: 'posts.create', methods: ['POST'], format: 'json')]
+    public function create(Request $request, ValidatorInterface $validator, PostService $postService): Response
+    {
+        // Récupération des données JSON envoyées
+        $data = json_decode($request->getContent(), true);
+
+        // Mapping dans le DTO
+        $payload = new CreatePostPayload();
+        $payload->setContent($data['content'] ?? null);
+
+        // Déclenche la validation
+        $errors = $validator->validate($payload);
+        if (count($errors) > 0) {
+            // Construction d'un tableau d'erreurs
+            $errorMessages = [];
+            foreach ($errors as $error) {
+                $errorMessages[$error->getPropertyPath()] = $error->getMessage();
+            }
+            return $this->json($errorMessages, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Débogage : décommentez la ligne ci-dessous pour vérifier le mapping
+        // dd($payload);
+
+        // Création du post via le service
+        $postService->create($payload);
+
+        // Retour d'une réponse vide avec le code HTTP 201
+        return new Response('', Response::HTTP_CREATED);
     }
 }
