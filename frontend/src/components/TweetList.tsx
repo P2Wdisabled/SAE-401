@@ -7,10 +7,15 @@ type TweetListProps = {
 };
 
 function TweetList({ activeTab }: TweetListProps) {
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [error, setError] = useState("");
-  useEffect(() => {
-    fetch("http://localhost:8080/posts?page=0")
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const fetchPosts = (pageNum: number) => {
+    setLoading(true);
+    fetch(`http://localhost:8080/posts?page=${pageNum}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Erreur lors de la récupération des posts");
@@ -18,27 +23,67 @@ function TweetList({ activeTab }: TweetListProps) {
         return response.json();
       })
       .then((data) => {
-        // On suppose que la réponse contient un tableau "posts"
-        setPosts(data.posts);
+        const newPosts = data.posts;
+        // Pour la page initiale, on remplace la liste afin d'éviter les doublons
+        if (pageNum === 0) {
+          setPosts(newPosts);
+        } else {
+          setPosts((prevPosts) => [...prevPosts, ...newPosts]);
+        }
+        if (newPosts.length < 50) {
+          setHasMore(false);
+        }
       })
       .catch((err) => {
         console.error(err);
         setError("Erreur lors du chargement des posts.");
+      })
+      .finally(() => {
+        setLoading(false);
       });
+  };
+
+  // Chargement initial uniquement au montage (page 0)
+  useEffect(() => {
+    fetchPosts(0);
   }, []);
-  // Exemples de tweets différents selon l'onglet
+
+  // Chargement des pages supérieures lors du scroll
+  useEffect(() => {
+    if (page > 0) {
+      fetchPosts(page);
+    }
+  }, [page]);
+
+  // Détecter le scroll vers le bas
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrolledFromTop =
+        window.innerHeight + document.documentElement.scrollTop;
+      const totalHeight = document.documentElement.offsetHeight;
+      // Chargement déclenché à 10px du bas
+      if (scrolledFromTop >= totalHeight - 10 && hasMore && !loading) {
+        setPage((prevPage) => prevPage + 1);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hasMore, loading]);
+
   if (activeTab === "pourVous") {
     return (
       <main className="px-4 pb-16">
         {error && <p className="text-red-500">{error}</p>}
-      {posts.map((post, index) => (
-        <Tweet
-          key={index}
-          author={post.username ? post.username : "Unnamed"}
-          content={post.content}
-          avatarColor="bg-gray-400"
-        />
-      ))}
+        {posts.map((post, index) => (
+          <Tweet
+            key={index}
+            author={post.username ? post.username : "Unnamed"}
+            content={post.content}
+            avatarColor="bg-gray-400"
+          />
+        ))}
+        {loading && <p>Chargement...</p>}
       </main>
     );
   } else {
