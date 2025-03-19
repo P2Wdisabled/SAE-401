@@ -25,7 +25,6 @@ function Post() {
       setError("Utilisateur non authentifié.");
       return;
     }
-console.log(token)
     try {
       const response = await fetch("http://localhost:8080/posts", {
         method: "POST",

@@ -15,24 +15,37 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 class PostController extends AbstractController
 {
     #[Route('/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
-    public function index(Request $request, PostRepository $postRepository): Response
-    {
-        $page = $request->query->getInt('page', 1);
-        $count = 50;
-        $offset = ($page - 1) * $count;
+public function index(Request $request, PostRepository $postRepository): Response
+{
+    $page = $request->query->getInt('page', 1);
+    // S'assurer que la page est au minimum 1 pour éviter un offset négatif
+    $count = 50;
+    // Remarque : l'offset classique se calcule avec ($page - 1) * $count
+    $offset = ($page) * $count;
 
-        $paginator = $postRepository->paginateAllOrderedByLatest($offset, $count);
+    $paginator = $postRepository->paginateAllOrderedByLatest($offset, $count);
 
-        $previousPage = $page > 1 ? $page - 1 : null;
-        $totalPostsCount = $paginator->count();
-        $nextPage = (($page * $count) < $totalPostsCount) ? $page + 1 : null;
+    $previousPage = $page > 0 ? $page - 1 : null;
+    $totalPostsCount = $paginator->count();
+    $nextPage = (($page * $count) < $totalPostsCount) ? $page + 1 : null;
 
-        return $this->json([
-            'posts'         => $paginator,
-            'previous_page' => $previousPage,
-            'next_page'     => $nextPage,
-        ]);
+    // Transformation de chaque post en tableau associatif contenant les données souhaitées
+    $postsArray = [];
+    foreach ($paginator as $post) {
+        $postsArray[] = [
+            'username'  => $post->getUser()->getUsername(),
+            'content'   => $post->getContent(),
+            'createdAt' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+        ];
     }
+
+    return $this->json([
+        'posts'         => $postsArray,
+        'previous_page' => $previousPage,
+        'next_page'     => $nextPage,
+    ]);
+}
+
 
     #[Route('/posts', name: 'posts.create', methods: ['POST'], format: 'json')]
     public function create(

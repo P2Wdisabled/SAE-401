@@ -1,5 +1,5 @@
 // src/components/TweetList.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Tweet from "../ui/tweet";
 
 type TweetListProps = {
@@ -7,20 +7,38 @@ type TweetListProps = {
 };
 
 function TweetList({ activeTab }: TweetListProps) {
+  const [posts, setPosts] = useState([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    fetch("http://localhost:8080/posts?page=0")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Erreur lors de la récupération des posts");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        // On suppose que la réponse contient un tableau "posts"
+        setPosts(data.posts);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Erreur lors du chargement des posts.");
+      });
+  }, []);
   // Exemples de tweets différents selon l'onglet
   if (activeTab === "pourVous") {
     return (
       <main className="px-4 pb-16">
+        {error && <p className="text-red-500">{error}</p>}
+      {posts.map((post, index) => (
         <Tweet
-          author="Unnamed"
-          content="Wow j'adore faire des réseaux sociaux de 0, c'est trop bien, je m'amuse de fou !!"
+          key={index}
+          author={post.username ? post.username : "Unnamed"}
+          content={post.content}
           avatarColor="bg-gray-400"
         />
-        <Tweet
-          author="Ptwo"
-          content="c’est marrant les gens qui parlent de leur vie ici, ils font que mentir mdr ! @Mora @Springsifeld Regardez ça!"
-          avatarColor="bg-red-500"
-        />
+      ))}
       </main>
     );
   } else {
