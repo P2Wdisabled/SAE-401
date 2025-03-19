@@ -33,7 +33,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Post::class, mappedBy: 'user')]
     private Collection $posts;
 
-    #[ORM\Column(length: 64, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $apiToken = null;
 
     public function __construct()

@@ -53,7 +53,7 @@ function Login() {
         const data = await response.json();
         // Stocker le token JWT dans le localStorage
         localStorage.setItem("token", data.token);
-        navigate("/home");
+        navigate("/");
       } else {
         setError("Email ou mot de passe incorrect");
       }

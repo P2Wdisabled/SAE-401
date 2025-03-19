@@ -1,26 +1,54 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { addNewPost } from "../components/PostMessage";
 
 function Post() {
-  // État local pour stocker le texte du tweet
+  // État local pour stocker le texte du post
   const [text, setText] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // Handler pour la saisie du tweet, limité à 280 caractères
-  function handleChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
+  // Handler pour la saisie du post, limité à 280 caractères
+  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = event.target.value;
     setText(newValue.slice(0, 280));
-  }
+  };
 
-  // Au clic sur "Poster"
-  function handleSubmit() {
+  // Au clic sur "Poster", on envoie le post vers le backend
+  const handleSubmit = async () => {
     if (text.trim().length === 0) {
-      return; // on empêche de poster un tweet vide
+      setError("Le post ne peut pas être vide.");
+      return;
     }
-    addNewPost(text);   // on ajoute le post au tableau en mémoire
-    navigate("/");      // on revient sur la page d'accueil
-  }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setError("Utilisateur non authentifié.");
+      return;
+    }
+console.log(token)
+    try {
+      const response = await fetch("http://localhost:8080/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Envoi du token JWT dans l'en-tête d'autorisation
+          "Authorization": "Bearer "+ token
+        },
+        body: JSON.stringify({ content: text })
+      });
+
+      if (response.ok) {
+        // Post ajouté, on revient sur la page d'accueil
+        navigate("/");
+      } else {
+        const data = await response.json();
+        setError(data.error || "Erreur lors de l'ajout du post.");
+      }
+    } catch (err) {
+      console.error("Erreur lors de la requête:", err);
+      setError("Erreur réseau, veuillez réessayer plus tard.");
+    }
+  };
 
   return (
     <div className="bg-[#17202A] min-h-screen text-white flex flex-col">
@@ -32,23 +60,22 @@ function Post() {
             className="text-2xl hover:bg-gray-800 p-2 rounded-full"
             title="Fermer"
           >
-            &#10005; {/* Symbole X */}
+            &#10005;
           </button>
         </Link>
 
         {/* Bouton "Poster" */}
         <button
           className="bg-[#1DA1F2] px-4 py-2 rounded-full font-semibold hover:bg-[#1A91DA] transition"
-          title="Poster ce tweet"
+          title="Poster ce post"
           onClick={handleSubmit}
         >
           Poster
         </button>
       </header>
 
-      {/* Zone de texte - Container centré verticalement */}
+      {/* Zone de texte */}
       <div className="flex-1 flex items-center justify-center px-4">
-        {/* Cadre englobant le textarea et son compteur */}
         <div className="w-full max-w-md border border-gray-600 p-2 relative">
           <textarea
             className="w-full h-64 bg-transparent text-white outline-none resize-none placeholder-gray-400"
@@ -57,12 +84,13 @@ function Post() {
             value={text}
             onChange={handleChange}
           />
-          {/* Compteur de caractères en haut à droite */}
           <span className="absolute top-2 right-2 text-sm text-gray-400">
             {text.length}/280
           </span>
         </div>
       </div>
+      {/* Affichage d'une éventuelle erreur */}
+      {error && <p className="text-red-500 text-center mt-2">{error}</p>}
     </div>
   );
 }

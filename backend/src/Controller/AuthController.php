@@ -49,23 +49,31 @@ class AuthController extends AbstractController
     }
 
     #[Route('/login', name: 'user.login', methods: ['POST'], format: 'json')]
-    public function login(
-        Request $request, 
-        UserRepository $userRepository, 
-        UserPasswordHasherInterface $passwordHasher,
-        JWTTokenManagerInterface $JWTManager
-    ): Response {
-        $data = json_decode($request->getContent(), true);
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
+public function login(
+    Request $request, 
+    UserRepository $userRepository, 
+    UserPasswordHasherInterface $passwordHasher,
+    JWTTokenManagerInterface $JWTManager,
+    EntityManagerInterface $entityManager // injection de l'EntityManager
+): Response {
+    $data = json_decode($request->getContent(), true);
+    $email = $data['email'] ?? '';
+    $password = $data['password'] ?? '';
 
-        $user = $userRepository->findOneBy(['email' => $email]);
-        if (!$user || !$passwordHasher->isPasswordValid($user, $password)) {
-            return $this->json(['error' => 'Identifiants invalides'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        // Création du token JWT pour l'utilisateur connecté
-        $token = $JWTManager->create($user);
-        return $this->json(['token' => $token]);
+    $user = $userRepository->findOneBy(['email' => $email]);
+    if (!$user || !$passwordHasher->isPasswordValid($user, $password)) {
+        return $this->json(['error' => 'Identifiants invalides'], Response::HTTP_UNAUTHORIZED);
     }
+
+    // Création du token JWT pour l'utilisateur connecté
+    $token = $JWTManager->create($user);
+    
+    // Enregistrement du token dans la colonne "api_token" de l'utilisateur
+    $user->setApiToken($token);
+    $entityManager->persist($user);
+    $entityManager->flush();
+    
+    return $this->json(['token' => $token]);
+}
+
 }

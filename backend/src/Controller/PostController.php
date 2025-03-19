@@ -39,23 +39,26 @@ class PostController extends AbstractController
         Request $request, 
         ValidatorInterface $validator, 
         PostService $postService,
-        UserRepository $userRepository
+        UserRepository $userRepository // Injection du UserRepository pour chercher l'utilisateur par token
     ): Response {
-        $session = $request->getSession();
-        $userId = $session->get('user_id');
-        if (!$userId) {
-            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        // Récupération de l'en-tête Authorization et extraction du token
+        $authHeader = $request->headers->get('Authorization');
+        if (!$authHeader || 0 !== strpos($authHeader, 'Bearer ')) {
+            return $this->json(['error' => 'Token manquant ou invalide'], Response::HTTP_UNAUTHORIZED);
         }
-
-        $user = $userRepository->find($userId);
+        $token = substr($authHeader, 7);
+    
+        // Recherche de l'utilisateur dont la colonne "api_token" correspond au token fourni
+        $user = $userRepository->findOneBy(['apiToken' => $token]);
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur introuvable'], Response::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'Token invalide'], Response::HTTP_UNAUTHORIZED);
         }
-
+    
+        // Traitement du contenu du post
         $data = json_decode($request->getContent(), true);
         $payload = new CreatePostPayload();
         $payload->setContent($data['content'] ?? null);
-
+    
         $errors = $validator->validate($payload);
         if (count($errors) > 0) {
             $errorMessages = [];
@@ -64,9 +67,11 @@ class PostController extends AbstractController
             }
             return $this->json($errorMessages, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-
+    
+        // Création du post en liant l'utilisateur trouvé
         $postService->create($payload, $user);
-
+    
         return new Response('', Response::HTTP_CREATED);
     }
+
 }
