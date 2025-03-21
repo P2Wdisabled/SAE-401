@@ -1,18 +1,46 @@
 security:
     # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
-        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+        App\Entity\User: auto  # utilise le meilleur algorithme disponible pour le hash du mot de passe
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        users_in_memory: { memory: null }
+        users_in_db:
+            entity:
+                class: App\Entity\User
+                property: username    # l'email sera utilisé comme identifiant unique
+        # used to reload user from session & other features (e.g. switch_user)
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: username
+        # used to reload user from session & other features (e.g. switch_user)
     firewalls:
+        # Firewall pour l'authentification via JSON (login)
+        login:
+            pattern: ^/api/login
+            stateless: true
+            provider: users_in_db      # <-- Indique le provider ici
+            #json_login:
+            #    check_path: /api/login_check
+            #    username_path: email
+            #    password_path: password
+            #    success_handler: lexik_jwt_authentication.handler.authentication_success
+            #    failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+
+        # Firewall pour les routes de l'API protégées par JWT
+        api:
+            pattern: ^/api
+            stateless: true
+            provider: users_in_db  # Indique le provider ici
+            jwt: ~
+
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
         main:
             lazy: true
-            provider: users_in_memory
-
+            provider: app_user_provider
             # activate different ways to authenticate
             # https://symfony.com/doc/current/security.html#the-firewall
 
@@ -22,6 +50,9 @@ security:
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
+        - { path: ^/api/login, roles: PUBLIC_ACCESS }      # la route de login est publique
+        - { path: ^/api/register, roles: PUBLIC_ACCESS }   # la route d'inscription est publique
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }   # toute autre route /api nécessite un JWT valide
         # - { path: ^/admin, roles: ROLE_ADMIN }
         # - { path: ^/profile, roles: ROLE_USER }
 

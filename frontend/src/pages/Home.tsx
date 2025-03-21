@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import TweetList from "../components/TweetList";
+import useCheckToken from "../components/useCheckToken"; // Adapté selon votre arborescence
 
 function Home() {
-  
   // Onglet actif : "pourVous" ou "abonnements"
   const [activeTab, setActiveTab] = useState<"pourVous" | "abonnements">("pourVous");
+  useCheckToken();
 
   // Gère le clic sur les onglets
   function handleTabClick(tab: "pourVous" | "abonnements") {

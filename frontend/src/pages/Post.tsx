@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import useCheckToken from "../components/useCheckToken"; // Adapté selon votre arborescence
 
 function Post() {
   // État local pour stocker le texte du post
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  useCheckToken();
   const navigate = useNavigate();
-
   // Handler pour la saisie du post, limité à 280 caractères
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = event.target.value;
@@ -19,35 +20,41 @@ function Post() {
       setError("Le post ne peut pas être vide.");
       return;
     }
-
+  
     const token = localStorage.getItem("token");
     if (!token) {
       setError("Utilisateur non authentifié.");
       return;
     }
     try {
-      const response = await fetch("http://localhost:8080/posts", {
+      const response = await fetch("http://localhost:8080/api/posts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Envoi du token JWT dans l'en-tête d'autorisation
-          "Authorization": "Bearer "+ token
+          "Authorization": "Bearer " + token,
         },
-        body: JSON.stringify({ content: text })
+        body: JSON.stringify({ content: text }),
       });
-
+  
+      const data = await response.json();
+  
       if (response.ok) {
-        // Post ajouté, on revient sur la page d'accueil
         navigate("/");
+      } else if (data.errors) {
+        // Si erreurs de validation
+        const allErrors = Object.values(data.errors).join(" ");
+        setError(allErrors);
+      } else if (data.error) {
+        setError(data.error);
       } else {
-        const data = await response.json();
-        setError(data.error || "Erreur lors de l'ajout du post.");
+        setError("Une erreur inconnue est survenue.");
       }
     } catch (err) {
       console.error("Erreur lors de la requête:", err);
       setError("Erreur réseau, veuillez réessayer plus tard.");
     }
   };
+  
 
   return (
     <div className="bg-[#17202A] min-h-screen text-white flex flex-col">

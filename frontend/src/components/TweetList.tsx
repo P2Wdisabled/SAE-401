@@ -15,7 +15,18 @@ function TweetList({ activeTab }: TweetListProps) {
 
   const fetchPosts = (pageNum: number) => {
     setLoading(true);
-    fetch(`http://localhost:8080/posts?page=${pageNum}`)
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setError("Utilisateur non authentifié.");
+      return;
+    }
+    fetch(`http://localhost:8080/api/posts?page=${pageNum}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token,
+      },
+    })
       .then((response) => {
         if (!response.ok) {
           throw new Error("Erreur lors de la récupération des posts");

@@ -7,73 +7,121 @@ use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Exception\JsonException;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Routing\Annotation\Route;
 
 class AuthController extends AbstractController
 {
-    #[Route('/register', name: 'user.register', methods: ['POST'], format: 'json')]
+    #[Route('/api/register', name: 'api_register', methods: ['POST'])]
     public function register(
-        Request $request, 
-        ValidatorInterface $validator, 
-        UserPasswordHasherInterface $passwordHasher, 
-        EntityManagerInterface $entityManager
-    ): Response {
-        $data = json_decode($request->getContent(), true);
+        Request $request,
+        UserRepository $userRepository,
+        UserPasswordHasherInterface $passwordHasher,
+        EntityManagerInterface $em,
+        JWTTokenManagerInterface $jwtManager
+    ): JsonResponse {
+        try {
+            $data = $request->toArray();
+        } catch (JsonException $e) {
+            return $this->json(
+                ['error' => 'Données JSON invalides.'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+        $username = $data['username'] ?? null;
+        $email = $data['email'] ?? null;
+        $plainPassword = $data['password'] ?? null;
 
-        $user = new User();
-        $user->setEmail($data['email'] ?? '');
-        $user->setUsername($data['username'] ?? '');
-        $user->setPassword($data['password'] ?? '');
-
-        $errors = $validator->validate($user);
-        if (count($errors) > 0) {
-            $errorMessages = [];
-            foreach ($errors as $error) {
-                $errorMessages[$error->getPropertyPath()] = $error->getMessage();
-            }
-            return $this->json($errorMessages, Response::HTTP_UNPROCESSABLE_ENTITY);
+        if (!$email || !$plainPassword) {
+            return $this->json(
+                ['error' => 'Email et mot de passe sont requis.'],
+                Response::HTTP_BAD_REQUEST
+            );
         }
 
-        // Hachage du mot de passe
-        $hashedPassword = $passwordHasher->hashPassword($user, $user->getPassword());
+        // Vérifier l'unicité de l'email
+        if ($userRepository->findOneBy(['email' => $email])) {
+            return $this->json(
+                ['error' => 'Cet email est déjà utilisé.'],
+                Response::HTTP_CONFLICT
+            );
+        }
+
+        // Création de l'utilisateur
+        $user = new User();
+        $user->setEmail($email);
+        $hashedPassword = $passwordHasher->hashPassword($user, $plainPassword);
         $user->setPassword($hashedPassword);
+        $user->setUsername($username);
 
-        $entityManager->persist($user);
-        $entityManager->flush();
+        $em->persist($user);
+        $em->flush();
 
-        return new Response('', Response::HTTP_CREATED);
+        // Génération d'un token JWT pour l’utilisateur
+        $token = $jwtManager->create($user);
+
+        return $this->json(
+            [
+                'message' => 'Inscription réussie.',
+                'token'   => $token,
+            ],
+            Response::HTTP_CREATED
+        );
     }
 
-    #[Route('/login', name: 'user.login', methods: ['POST'], format: 'json')]
-public function login(
-    Request $request, 
-    UserRepository $userRepository, 
-    UserPasswordHasherInterface $passwordHasher,
-    JWTTokenManagerInterface $JWTManager,
-    EntityManagerInterface $entityManager // injection de l'EntityManager
-): Response {
-    $data = json_decode($request->getContent(), true);
-    $email = $data['email'] ?? '';
-    $password = $data['password'] ?? '';
+    #[Route('/api/login', name: 'api_login', methods: ['POST'])]
+    public function login(
+        Request $request,
+        UserRepository $userRepository,
+        UserPasswordHasherInterface $passwordHasher,
+        JWTTokenManagerInterface $jwtManager
+    ): JsonResponse {
+        try {
+            $data = $request->toArray();
+        } catch (JsonException $e) {
+            return $this->json(
+                ['error' => 'Données JSON invalides.'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
 
-    $user = $userRepository->findOneBy(['email' => $email]);
-    if (!$user || !$passwordHasher->isPasswordValid($user, $password)) {
-        return $this->json(['error' => 'Identifiants invalides'], Response::HTTP_UNAUTHORIZED);
+        $email = $data['email'] ?? null;
+        $plainPassword = $data['password'] ?? null;
+
+        if (!$email || !$plainPassword) {
+            return $this->json(
+                ['error' => 'Email et mot de passe sont requis.'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Chercher l'utilisateur par email
+        $user = $userRepository->findOneBy(['email' => $email]);
+        if (!$user) {
+            return $this->json(
+                ['error' => 'Identifiants invalides (email).'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Vérifier le mot de passe
+        if (!$passwordHasher->isPasswordValid($user, $plainPassword)) {
+            return $this->json(
+                ['error' => 'Identifiants invalides (mot de passe).'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Génération d'un token JWT
+        $token = $jwtManager->create($user);
+
+        return $this->json([
+            'message' => 'Authentification réussie.',
+            'token'   => $token,
+        ]);
     }
-
-    // Création du token JWT pour l'utilisateur connecté
-    $token = $JWTManager->create($user);
-    
-    // Enregistrement du token dans la colonne "api_token" de l'utilisateur
-    $user->setApiToken($token);
-    $entityManager->persist($user);
-    $entityManager->flush();
-    
-    return $this->json(['token' => $token]);
-}
-
 }

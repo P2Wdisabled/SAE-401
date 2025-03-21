@@ -7,11 +7,9 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  useCheckToken();
 
   const navigate = useNavigate();
-
-  // Redirige si un token existe déjà dans le localStorage
-  useCheckToken();
 
   // Vérifie que l'email est au bon format
   const isEmailValid = (email: string): boolean => {
@@ -43,11 +41,12 @@ function Login() {
     const payload = { email, password };
 
     try {
-      const response = await fetch("http://localhost:8080/login", {
+      const response = await fetch("http://localhost:8080/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      console.log(response)
 
       if (response.ok) {
         const data = await response.json();

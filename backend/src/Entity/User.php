@@ -3,14 +3,15 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use App\Entity\Post;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
+#[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_USERNAME', fields: ['username'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -18,23 +19,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 180, unique: true)]
+    #[ORM\Column(length: 180)]
     private ?string $username = null;
 
-    #[ORM\Column(length: 100)]
-    private ?string $email = null;
+    #[ORM\Column(type: 'string', length: 180, unique: true)]
+    private string $email;
 
-    #[ORM\Column(type: Types::TEXT)]
+    #[ORM\Column(type: 'json')]
+    private array $roles = [];
+
+    #[ORM\Column]
     private ?string $password = null;
 
-    /**
-     * @var Collection<int, Post>
-     */
-    #[ORM\OneToMany(targetEntity: Post::class, mappedBy: 'user')]
-    private Collection $posts;
+    private ?string $plainPassword = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $apiToken = null;
+    // Définition de la relation OneToMany avec Post
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Post::class, orphanRemoval: true)]
+    #[ORM\OrderBy(['createdAt' => 'DESC'])]
+    private Collection $posts;
 
     public function __construct()
     {
@@ -56,31 +58,78 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->username = $username;
         return $this;
     }
-
-    public function getEmail(): ?string
-    {
-        return $this->email;
-    }
-
-    public function setEmail(string $email): static
+    
+    public function setEmail(string $email): self 
     {
         $this->email = $email;
         return $this;
     }
-
-    public function getPassword(): ?string
+    
+    public function getEmail(): string 
     {
-        return $this->password;
+        return $this->email;
     }
 
-    public function setPassword(string $password): static
+    /**
+     * Renvoie l'identifiant de l'utilisateur.
+     * Ici, si tu souhaites utiliser l'email comme identifiant pour l'authentification,
+     * retourne l'email. Sinon, retourne le username.
+     */
+    public function getUserIdentifier(): string
+    {
+        return $this->email;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRoles(): array
+    {
+        $roles = $this->roles;
+        // garantit que l'utilisateur a au moins ROLE_USER
+        $roles[] = 'ROLE_USER';
+        return array_unique($roles);
+    }
+
+    /**
+     * @param list<string> $roles
+     */
+    public function setRoles(array $roles): static
+    {
+        $this->roles = $roles;
+        return $this;
+    }
+
+    public function setPassword(string $password): self 
     {
         $this->password = $password;
         return $this;
     }
+    
+    public function getPassword(): string 
+    {
+        return $this->password;
+    }
+
+    public function setPlainPassword(?string $plainPassword): self 
+    {
+        $this->plainPassword = $plainPassword;
+        return $this;
+    }
+    
+    public function getPlainPassword(): ?string 
+    {
+        return $this->plainPassword;
+    }
+
+    public function eraseCredentials(): void
+    {
+        // Efface toute donnée temporaire sensible
+        // $this->plainPassword = null;
+    }
 
     /**
-     * @return Collection<int, Post>
+     * @return Collection|Post[]
      */
     public function getPosts(): Collection
     {
@@ -90,7 +139,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function addPost(Post $post): static
     {
         if (!$this->posts->contains($post)) {
-            $this->posts->add($post);
+            $this->posts[] = $post;
             $post->setUser($this);
         }
         return $this;
@@ -103,40 +152,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $post->setUser(null);
             }
         }
-        return $this;
-    }
-
-    // Implémentation de la méthode getRoles() requise par UserInterface
-    public function getRoles(): array
-    {
-        return ['ROLE_USER'];
-    }
-
-    // Méthode requise par PasswordAuthenticatedUserInterface
-    public function getUserIdentifier(): string
-    {
-        return (string) $this->username;
-    }
-
-    public function getSalt(): ?string
-    {
-        return null;
-    }
-
-    public function eraseCredentials(): void
-    {
-        // Effacez les données sensibles si nécessaire
-    }
-
-    public function getApiToken(): ?string
-    {
-        return $this->apiToken;
-    }
-
-    public function setApiToken(string $apiToken): static
-    {
-        $this->apiToken = $apiToken;
-
         return $this;
     }
 }
