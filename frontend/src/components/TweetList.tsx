@@ -97,23 +97,23 @@ function TweetList({ activeTab }: TweetListProps) {
         {loading && <p>Chargement...</p>}
       </main>
     );
-  } else {
-    // Onglet "Abonnements"
-    return (
-      <main className="px-4 pb-16">
-        <Tweet
-          author="MonMeilleurAmi"
-          content="Salut les amis, abonnez-vous pour plus de contenu exclusif !"
-          avatarColor="bg-blue-500"
-        />
-        <Tweet
-          author="DevReact"
-          content="Voici des astuces pour coder plus vite en React !"
-          avatarColor="bg-green-500"
-        />
-      </main>
-    );
-  }
+  }// else {
+  //   // Onglet "Abonnements"
+  //   return (
+  //     <main className="px-4 pb-16">
+  //       <Tweet
+  //         author="MonMeilleurAmi"
+  //         content="Salut les amis, abonnez-vous pour plus de contenu exclusif !"
+  //         avatarColor="bg-blue-500"
+  //       />
+  //       <Tweet
+  //         author="DevReact"
+  //         content="Voici des astuces pour coder plus vite en React !"
+  //         avatarColor="bg-green-500"
+  //       />
+  //     </main>
+  //   );
+  // }
 }
 
 export default TweetList;
