@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import useCheckToken from "../components/useCheckToken"; // Adapté selon votre arborescence
+import {checkToken} from "../components/Checker"; // Adapté selon votre arborescence
+import Button from "../ui/Button";
 
 function Post() {
   // État local pour stocker le texte du post
   const [text, setText] = useState("");
   const [error, setError] = useState("");
-  useCheckToken();
+  checkToken();
   const navigate = useNavigate();
   // Handler pour la saisie du post, limité à 280 caractères
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -61,23 +62,11 @@ function Post() {
       {/* En-tête */}
       <header className="flex items-center justify-between p-4 border-b border-gray-700">
         {/* Bouton de fermeture (croix) */}
-        <Link to="/">
-          <button
-            className="text-2xl hover:bg-gray-800 p-2 rounded-full"
-            title="Fermer"
-          >
-            &#10005;
-          </button>
-        </Link>
+        <Button page="/" text="&#10005;" bg="transparent" moreClasses="text-2xl hover:bg-gray-800 p-2 rounded-full" />
 
         {/* Bouton "Poster" */}
-        <button
-          className="bg-[#1DA1F2] px-4 py-2 rounded-full font-semibold hover:bg-[#1A91DA] transition"
-          title="Poster ce post"
-          onClick={handleSubmit}
-        >
-          Poster
-        </button>
+        <Button text="Poster" bg="bg-primary" moreClasses=" px-4 py-2 rounded-full font-semibold hover:bg-[#1A91DA] transition" 
+          onClick={handleSubmit} />
       </header>
 
       {/* Zone de texte */}

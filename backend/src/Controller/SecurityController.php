@@ -91,6 +91,7 @@ class SecurityController extends AbstractController
         return $this->json([
             'message' => 'Authentification réussie.',
             'token'   => $token,
+            'expiration' => json_encode((new \DateTimeImmutable())->modify('+5 hour')),
         ]);
     }
 }

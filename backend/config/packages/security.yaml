@@ -26,7 +26,7 @@ security:
 
         # Firewall pour les routes protégées par le token d'accès
         api:
-            pattern: ^/api
+            pattern: ^/(api|admin|users)
             stateless: true
             provider: users_in_db
             custom_authenticator: App\Security\AccessTokenAuthenticator

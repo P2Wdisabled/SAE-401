@@ -23,7 +23,7 @@ class UserService
         $apiToken = new ApiToken();
         $apiToken->setToken($hashedToken);
         // Par exemple, expiration dans 1 heure
-        $apiToken->setExpiresAt((new \DateTimeImmutable())->modify('+1 hour'));
+        $apiToken->setExpiresAt((new \DateTimeImmutable())->modify('+5 hour'));
         $apiToken->setUser($user);
         
         $this->em->persist($apiToken);

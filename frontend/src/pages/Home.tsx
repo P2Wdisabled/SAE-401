@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import TweetList from "../components/TweetList";
-import useCheckToken from "../components/useCheckToken"; // Adapté selon votre arborescence
+import {checkToken} from "../components/Checker"; // Adapté selon votre arborescence
+import Button from "../ui/Button";
 
 function Home() {
   // Onglet actif : "pourVous" ou "abonnements"
   const [activeTab, setActiveTab] = useState<"pourVous" | "abonnements">("pourVous");
-  useCheckToken();
+  checkToken();
 
   // Gère le clic sur les onglets
   function handleTabClick(tab: "pourVous" | "abonnements") {
@@ -42,17 +43,10 @@ function Home() {
       <TweetList activeTab={activeTab} />
 
       {/* Bouton flottant (nouveau Tweet) */}
-      <Link to="/post">
-      <button
-        className="w-12 h-12 rounded-full bg-[#1DA1F2] text-white text-2xl 
+      <Button text="+" page="/post" moreClasses="w-12 h-12 rounded-full bg-[#1DA1F2] text-white text-2xl 
                    flex items-center justify-center 
                    absolute bottom-8 right-8 
-                   hover:bg-[#1A91DA] transition"
-        title="Nouveau Tweet"
-      >
-        +
-      </button>
-      </Link>
+                   hover:bg-[#1A91DA] transition" />
     </>
   );
 }

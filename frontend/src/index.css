@@ -12,4 +12,18 @@
     --color-primary-blue: #1DA1F2;
     --color-black: #0F1419;
     --color-white: #FFFFFF;
+
+
+    --color-primary: var(--color-primary-blue);
+
+}
+
+@layer base {
+    #root {
+        max-width: 900px;
+        width: 900px;
+    }
+    .dark {
+        --color-primary: var(--color-white);
+    }
 }

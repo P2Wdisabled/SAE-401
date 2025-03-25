@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import FormInput from "../ui/FormInput";
-import useCheckToken from "../components/useCheckToken"; // Adapté selon votre arborescence
+import {checkToken} from "../components/Checker"; // Adapté selon votre arborescence
+import Button from "../ui/Button";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  useCheckToken();
+  checkToken();
 
   const navigate = useNavigate();
 
@@ -52,6 +53,7 @@ function Login() {
         const data = await response.json();
         // Stocker le token JWT dans le localStorage
         localStorage.setItem("token", data.token);
+        localStorage.setItem("expiration", data.expiration)
         navigate("/");
       } else {
         setError("Email ou mot de passe incorrect");
@@ -91,30 +93,18 @@ function Login() {
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
         <div className="flex w-full max-w-sm justify-between">
-          <Link to="/landing">
-            <button
-              type="button"
-              className="px-4 py-2 border border-gray-500 rounded-full 
+        <Button page="/landing" text="Retour" bg="bg-transparent" moreClasses="px-4 py-2 border border-gray-500 rounded-full 
                          text-white 
                          hover:bg-gray-700 
                          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 
                          active:bg-gray-600 
-                         transition"
-            >
-              Retour
-            </button>
-          </Link>
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-full bg-white text-black 
+                         transition"/>
+        <Button text="Se connecter" buttonType="submit" bg="bg-white" moreClasses="px-4 py-2 rounded-full text-black 
                          font-semibold 
                          hover:bg-gray-200 
                          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-200 
                          active:bg-gray-300 
-                         transition"
-          >
-            Se connecter
-          </button>
+                         transition"/>
         </div>
       </form>
     </div>
