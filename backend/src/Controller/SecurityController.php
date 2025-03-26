@@ -4,6 +4,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Entity\ApiToken;
 use App\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -93,5 +94,35 @@ class SecurityController extends AbstractController
             'token'   => $token,
             'expiration' => json_encode((new \DateTimeImmutable())->modify('+5 hour')),
         ]);
+    }
+    
+    #[Route('/logout', name: 'app_logout', methods: ['DELETE'], defaults: ['_format' => 'json'])]
+    public function logout(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        // Récupération de l'en-tête Authorization
+        $authHeader = $request->headers->get('Authorization');
+        if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+            return $this->json(
+                ['error' => 'Token not provided'],
+                JsonResponse::HTTP_BAD_REQUEST
+            );
+        }
+        $rawToken = $matches[1];
+        $hashedToken = hash('sha256', $rawToken);
+
+        // Recherche du token dans la base
+        $apiToken = $em->getRepository(ApiToken::class)->findOneBy(['token' => $hashedToken]);
+        if (!$apiToken) {
+            return $this->json(
+                ['error' => 'Token not found'],
+                JsonResponse::HTTP_NOT_FOUND
+            );
+        }
+
+        // Suppression du token
+        $em->remove($apiToken);
+        $em->flush();
+
+        return $this->json(['message' => 'Déconnexion réussie.']);
     }
 }

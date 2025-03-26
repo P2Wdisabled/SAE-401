@@ -52,7 +52,6 @@ function Login() {
         const data = await response.json();
         // Stocker le token JWT dans le localStorage
         localStorage.setItem("token", data.token);
-        localStorage.setItem("expiration", data.expiration)
         navigate("/");
       } else {
         setError("Email ou mot de passe incorrect");
