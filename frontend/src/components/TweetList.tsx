@@ -15,12 +15,9 @@ function TweetList({ activeTab }: TweetListProps) {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
-
-  // États pour le rafraîchissement automatique
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
-  const [refreshInterval] = useState(30); // en secondes
+  const refreshInterval = 30; // secondes
 
-  // Fonction pour récupérer les posts (infinite scroll)
   const fetchPosts = (pageNum: number) => {
     setLoading(true);
     const token = localStorage.getItem("token");
@@ -67,69 +64,62 @@ function TweetList({ activeTab }: TweetListProps) {
       });
   };
 
-  // Fonction pour rafraîchir et charger les nouveaux tweets en haut du fil
-  // Fonction pour rafraîchir et charger les nouveaux tweets en haut du fil
-const refreshPosts = () => {
-  const startTime = Date.now();
-  setLoading(true); // Démarre l'animation du bouton
-  const token = localStorage.getItem("token");
-  if (!token) {
-    setError("Utilisateur non authentifié.");
-    navigate("/landing");
-    setLoading(false);
-    return;
-  }
-  fetch(`http://localhost:8080/api/posts?page=0`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + token,
-    },
-  })
-    .then((response) => {
-      if (!response.ok) {
-        if (response.status === 401) navigate("/landing");
-        else if (response.status === 403) navigate("/");
-        throw new Error("Erreur lors de la récupération des posts");
-      }
-      return response.json();
+  const refreshPosts = () => {
+    const startTime = Date.now();
+    setLoading(true);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setError("Utilisateur non authentifié.");
+      navigate("/landing");
+      setLoading(false);
+      return;
+    }
+    fetch(`http://localhost:8080/api/posts?page=0`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token,
+      },
     })
-    .then((data) => {
-      const newPosts = data.posts;
-      setPosts(newPosts);
-      if (newPosts.length < 50) {
-        setHasMore(false);
-      }
-    })
-    .catch((err) => {
-      console.error(err);
-      setError("Erreur lors du rafraîchissement des posts.");
-    })
-    .finally(() => {
-      // Calculer le temps écoulé et forcer un délai minimal de 2 secondes
-      const elapsed = Date.now() - startTime;
-      const minDuration = 2000; // 2000 ms = 2 secondes (2 rotations)
-      const delay = Math.max(0, minDuration - elapsed);
-      setTimeout(() => {
-        setLoading(false); // Arrête l'animation après au moins 2 rotations
-      }, delay);
-    });
-};
+      .then((response) => {
+        if (!response.ok) {
+          if (response.status === 401) navigate("/landing");
+          else if (response.status === 403) navigate("/");
+          throw new Error("Erreur lors de la récupération des posts");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        const newPosts = data.posts;
+        setPosts(newPosts);
+        if (newPosts.length < 50) {
+          setHasMore(false);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Erreur lors du rafraîchissement des posts.");
+      })
+      .finally(() => {
+        const elapsed = Date.now() - startTime;
+        const minDuration = 2000;
+        const delay = Math.max(0, minDuration - elapsed);
+        setTimeout(() => {
+          setLoading(false);
+        }, delay);
+      });
+  };
 
-
-  // Chargement initial
   useEffect(() => {
     fetchPosts(0);
   }, []);
 
-  // Chargement des pages suivantes via le scroll
   useEffect(() => {
     if (page > 0) {
       fetchPosts(page);
     }
   }, [page]);
 
-  // Détection du scroll vers le bas
   useEffect(() => {
     const handleScroll = () => {
       const scrolledFromTop = window.innerHeight + document.documentElement.scrollTop;
@@ -143,7 +133,6 @@ const refreshPosts = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasMore, loading]);
 
-  // Mise en place du rafraîchissement automatique si activé
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
     if (autoRefreshEnabled) {
@@ -159,7 +148,6 @@ const refreshPosts = () => {
   if (activeTab === "pourVous") {
     return (
       <main className="px-4 pb-16">
-        {/* Bouton "Rafraîchir" et contrôle de l'auto-refresh */}
         <div id="RefreshButton" className="flex justify-between items-center my-4">
           <Button
             text=""
@@ -197,9 +185,12 @@ const refreshPosts = () => {
         {posts.map((post, index) => (
           <Tweet
             key={post.id || index}
+            tweetId={post.id}
             author={post.username ? post.username : "Unnamed"}
             content={post.content}
-            avatarColor="bg-gray-400"
+            profilePicture={post.profilePicture || "default-profile.png"}
+            initialLikeCount={post.likeCount || 0}
+            initialLiked={post.liked || false}
           />
         ))}
         {loading && <p>Chargement...</p>}
@@ -209,25 +200,5 @@ const refreshPosts = () => {
 
   return null;
 }
-
-//ça dois faire minimum 2 tours complet sur lui même
-
-// else {
-  //   // Onglet "Abonnements"
-  //   return (
-  //     <main className="px-4 pb-16">
-  //       <Tweet
-  //         author="MonMeilleurAmi"
-  //         content="Salut les amis, abonnez-vous pour plus de contenu exclusif !"
-  //         avatarColor="bg-blue-500"
-  //       />
-  //       <Tweet
-  //         author="DevReact"
-  //         content="Voici des astuces pour coder plus vite en React !"
-  //         avatarColor="bg-green-500"
-  //       />
-  //     </main>
-  //   );
-  // }
 
 export default TweetList;

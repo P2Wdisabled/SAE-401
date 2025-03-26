@@ -8,6 +8,7 @@ import Login from "../pages/Login";
 import Header from "../ui/Header";
 import Dashboard from "../pages/AdminDashboard";
 import EditAccount from "../pages/AdminEdit";
+import Profile from "../pages/Profile";
 
 function AppRouter() {
   return (
@@ -20,6 +21,7 @@ function AppRouter() {
           <Route path="/landing" element={<Landing />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/profile/:username" element={<Profile />} />
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/edit/:id" element={<EditAccount />} />
           <Route path="*" element={<h2 className="text-white">Page non trouvée</h2>} />

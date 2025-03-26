@@ -6,6 +6,8 @@ use App\Repository\PostRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 
 #[ORM\Entity(repositoryClass: PostRepository::class)]
 class Post
@@ -27,6 +29,24 @@ class Post
     #[ORM\ManyToOne(inversedBy: 'posts')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
+
+    
+#[ORM\OneToMany(mappedBy: 'post', targetEntity: PostLike::class, cascade: ["remove"])]
+private Collection $likes;
+
+public function __construct() {
+    $this->likes = new ArrayCollection();
+}
+
+public function getLikes(): Collection
+{
+    return $this->likes;
+}
+
+public function getLikesCount(): int
+{
+    return $this->likes->count();
+}
 
     public function getId(): ?int
     {
