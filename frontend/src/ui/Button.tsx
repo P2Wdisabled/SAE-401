@@ -26,7 +26,7 @@ function Button({
   const content = (
     <>
       {text}
-      {object && <span className="ml-2">{object}</span>}
+      {object && <span className="">{object}</span>}
     </>
   );
 
