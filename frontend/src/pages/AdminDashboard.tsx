@@ -1,11 +1,9 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React from "react";
 import AccountsList from "../components/AccountsList";
-import {checkToken, checkAdmin} from "../components/Checker"; // Adapté selon votre arborescence
-import Button from "../ui/Button";
+import {useCheckToken} from "../components/Checker";
 
 function Dashboard() {
-  checkAdmin();
+  useCheckToken();
 
 
 

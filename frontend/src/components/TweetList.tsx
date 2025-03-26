@@ -1,5 +1,6 @@
 // src/components/TweetList.tsx
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Tweet from "../ui/tweet";
 
 type TweetListProps = {
@@ -7,6 +8,7 @@ type TweetListProps = {
 };
 
 function TweetList({ activeTab }: TweetListProps) {
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [page, setPage] = useState(0);
@@ -18,6 +20,7 @@ function TweetList({ activeTab }: TweetListProps) {
     const token = localStorage.getItem("token");
     if (!token) {
       setError("Utilisateur non authentifié.");
+      navigate("/landing");
       return;
     }
     fetch(`http://localhost:8080/api/posts?page=${pageNum}`, {
@@ -29,13 +32,20 @@ function TweetList({ activeTab }: TweetListProps) {
     })
       .then((response) => {
         if (!response.ok) {
+          if (response.status === 401) {
+            // Token invalide
+            navigate("/landing");
+          } else if (response.status === 403) {
+            // Permission refusée
+            navigate("/");
+          }
           throw new Error("Erreur lors de la récupération des posts");
         }
         return response.json();
       })
       .then((data) => {
         const newPosts = data.posts;
-        // Pour la page initiale, on remplace la liste afin d'éviter les doublons
+        // Pour la page initiale, on remplace la liste pour éviter les doublons
         if (pageNum === 0) {
           setPosts(newPosts);
         } else {
@@ -54,19 +64,19 @@ function TweetList({ activeTab }: TweetListProps) {
       });
   };
 
-  // Chargement initial uniquement au montage (page 0)
+  // Chargement initial (page 0)
   useEffect(() => {
     fetchPosts(0);
   }, []);
 
-  // Chargement des pages supérieures lors du scroll
+  // Chargement des pages suivantes lors du scroll
   useEffect(() => {
     if (page > 0) {
       fetchPosts(page);
     }
   }, [page]);
 
-  // Détecter le scroll vers le bas
+  // Détection du scroll vers le bas
   useEffect(() => {
     const handleScroll = () => {
       const scrolledFromTop =
@@ -97,7 +107,11 @@ function TweetList({ activeTab }: TweetListProps) {
         {loading && <p>Chargement...</p>}
       </main>
     );
-  }// else {
+  }
+
+  return null;
+}
+// else {
   //   // Onglet "Abonnements"
   //   return (
   //     <main className="px-4 pb-16">
@@ -114,6 +128,5 @@ function TweetList({ activeTab }: TweetListProps) {
   //     </main>
   //   );
   // }
-}
 
 export default TweetList;

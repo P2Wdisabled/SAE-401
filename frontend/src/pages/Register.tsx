@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import FormInput from "../ui/FormInput";
-import {checkToken} from "../components/Checker"; // Adapté selon votre arborescence
+import {useCheckToken} from "../components/Checker"; // Adapté selon votre arborescence
 
 function Register() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [passwordStrength, setPasswordStrength] = useState("");
-  checkToken();
+  useCheckToken();
   const navigate = useNavigate();
 
   // Vérifie que l'email est au bon format

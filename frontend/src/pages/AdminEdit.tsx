@@ -1,13 +1,12 @@
 // src/pages/AdminEdit.tsx
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { checkToken, checkAdmin } from "../components/Checker";
+import { useCheckToken } from "../components/Checker";
 import Button from "../ui/Button";
 import FormInput from "../ui/FormInput";
 
 function EditAccount() {
-  checkToken();
-  checkAdmin();
+  useCheckToken();
 
   const { id } = useParams<{ id: string }>(); // id est une chaîne de caractères
 
@@ -67,7 +66,7 @@ function EditAccount() {
         }
         return response.json();
       })
-      .then((data) => {
+      .then(() => {
         setSuccess("Utilisateur mis à jour avec succès.");
       })
       .catch((err) => {

@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import FormInput from "../ui/FormInput";
-import {checkToken} from "../components/Checker"; // Adapté selon votre arborescence
+import {useCheckToken} from "../components/Checker"; // Adapté selon votre arborescence
 import Button from "../ui/Button";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  checkToken();
+  useCheckToken();
 
   const navigate = useNavigate();
 
@@ -47,7 +47,6 @@ function Login() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      console.log(response)
 
       if (response.ok) {
         const data = await response.json();

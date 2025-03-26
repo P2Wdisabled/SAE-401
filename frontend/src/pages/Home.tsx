@@ -1,13 +1,12 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
 import TweetList from "../components/TweetList";
-import {checkToken} from "../components/Checker"; // Adapté selon votre arborescence
+import {useCheckToken} from "../components/Checker"; // Adapté selon votre arborescence
 import Button from "../ui/Button";
 
 function Home() {
+  useCheckToken();
   // Onglet actif : "pourVous" ou "abonnements"
   const [activeTab, setActiveTab] = useState<"pourVous" | "abonnements">("pourVous");
-  checkToken();
 
   // Gère le clic sur les onglets
   function handleTabClick(tab: "pourVous" | "abonnements") {
@@ -15,6 +14,7 @@ function Home() {
   }
 
   return (
+    
     <>
       {/* Barre d'onglets */}
       <nav className="flex justify-evenly border-b border-gray-700 text-white relative">

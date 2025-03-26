@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import {checkToken} from "../components/Checker"; // Adapté selon votre arborescence
+import { useNavigate } from "react-router-dom";
+import {useCheckToken} from "../components/Checker"; // Adapté selon votre arborescence
 import Button from "../ui/Button";
 
 function Post() {
   // État local pour stocker le texte du post
   const [text, setText] = useState("");
   const [error, setError] = useState("");
-  checkToken();
+  useCheckToken();
   const navigate = useNavigate();
   // Handler pour la saisie du post, limité à 280 caractères
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
