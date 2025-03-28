@@ -1,3 +1,4 @@
+// src/components/Profile.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Tweet from "../ui/tweet";
@@ -41,18 +42,31 @@ const Profile: React.FC = () => {
       });
   }, [username, navigate]);
 
+  // Fonction pour retirer un tweet supprimé de l'affichage
+  const handleDeleteTweet = (tweetId: number) => {
+    setTweets((prevTweets) => prevTweets.filter((tweet) => tweet.id !== tweetId));
+  };
+
   if (loading) {
     return <div className="text-center mt-4">Chargement...</div>;
   }
   if (!profile) {
-    return <div className="text-center mt-4 text-red-500">Erreur de chargement du profil</div>;
+    return (
+      <div className="text-center mt-4 text-red-500">
+        Erreur de chargement du profil
+      </div>
+    );
   }
 
   return (
     <div className="max-w-2xl mx-auto">
       {/* Bannière et photo de profil */}
       <div className="relative">
-        <img src={profile.banner} alt="Bannière" className="w-full h-48 object-cover" />
+        <img
+          src={profile.banner}
+          alt="Bannière"
+          className="w-full h-48 object-cover"
+        />
         <img
           src={profile.profilePicture}
           alt="Photo de profil"
@@ -60,8 +74,8 @@ const Profile: React.FC = () => {
         />
       </div>
       <div className="mt-16 px-4">
-        <h1 className="text-2xl font-bold">{profile.username}</h1>
-        <p className="text-gray-600">{profile.bio}</p>
+        <h1 className="text-2xl font-bold text-white">{profile.username}</h1>
+        <p className="text-white">{profile.bio}</p>
         <div className="mt-2 flex space-x-4 text-gray-500">
           <span>{profile.location}</span>
           <a
@@ -83,9 +97,9 @@ const Profile: React.FC = () => {
         )}
       </div>
       <div className="mt-4 px-4">
-        <h2 className="text-xl font-semibold mb-2">Tweets</h2>
+        <h2 className="text-xl font-semibold mb-2 text-white">Tweets</h2>
         {tweets.length === 0 ? (
-          <p>Aucun tweet à afficher.</p>
+          <p className="text-white">Aucun tweet à afficher.</p>
         ) : (
           tweets.map((tweet, index) => (
             <Tweet
@@ -93,9 +107,12 @@ const Profile: React.FC = () => {
               tweetId={tweet.id}
               author={profile.username}
               content={tweet.content}
-              profilePicture={profile.profilePicture}
+              profilePicture={profile.profilePicture || "default-profile.png"}
               initialLikeCount={tweet.likeCount || 0}
               initialLiked={false} // Implémentez la logique du like si besoin
+              // Le tweet est supprimable si le profil est éditable par l'utilisateur connecté
+              isOwner={profile.editable}
+              onDelete={() => handleDeleteTweet(tweet.id)}
             />
           ))
         )}

@@ -18,6 +18,9 @@ function TweetList({ activeTab }: TweetListProps) {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const refreshInterval = 30; // secondes
 
+  // Récupère le username de l'utilisateur courant (préalablement stocké lors de l'authentification)
+  const currentUsername = localStorage.getItem("username");
+
   const fetchPosts = (pageNum: number) => {
     setLoading(true);
     const token = localStorage.getItem("token");
@@ -110,6 +113,7 @@ function TweetList({ activeTab }: TweetListProps) {
       });
   };
 
+  // Chargement initial et pagination
   useEffect(() => {
     fetchPosts(0);
   }, []);
@@ -144,6 +148,11 @@ function TweetList({ activeTab }: TweetListProps) {
       if (interval) clearInterval(interval);
     };
   }, [autoRefreshEnabled, refreshInterval]);
+
+  // Fonction pour retirer un tweet supprimé de l'affichage
+  const handleDelete = (tweetId: number) => {
+    setPosts((prevPosts) => prevPosts.filter((post) => post.id !== tweetId));
+  };
 
   if (activeTab === "pourVous") {
     return (
@@ -191,6 +200,9 @@ function TweetList({ activeTab }: TweetListProps) {
             profilePicture={post.profilePicture || "default-profile.png"}
             initialLikeCount={post.likeCount || 0}
             initialLiked={post.liked || false}
+            // Affichage du bouton "Supprimer" si le tweet appartient à l'utilisateur courant
+            isOwner={post.editable}
+            onDelete={() => handleDelete(post.id)}
           />
         ))}
         {loading && <p>Chargement...</p>}

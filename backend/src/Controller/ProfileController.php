@@ -45,6 +45,7 @@ class ProfileController extends AbstractController
                 'content'    => $post->getContent(),
                 'createdAt'  => $post->getCreatedAt()->format('c'),
                 'likeCount'  => $post->getLikesCount(),
+                'editable'   => $isOwner, // Le tweet est éditable (ou supprimable) uniquement si l'utilisateur connecté est le propriétaire du profil
             ];
         }
 
@@ -52,12 +53,12 @@ class ProfileController extends AbstractController
         // Remplacez les valeurs par les champs réels de votre entité User si vous les avez (bio, photo, etc.)
         $profileData = [
             'username'       => $user->getUsername(),
-            'bio'            => '',                   // Exemple: $user->getBio()
+            'bio'            => '',                    // Exemple: $user->getBio()
             'profilePicture' => $user->getProfilePicture(), // Exemple: $user->getProfilePicture()
-            'banner'         => 'default-banner.png',  // Exemple: $user->getBanner()
-            'location'       => '',                   // Exemple: $user->getLocation()
-            'website'        => '',                   // Exemple: $user->getWebsite()
-            'editable'       => $isOwner,             // Permet d’indiquer si le profil peut être édité
+            'banner'         => $user->getProfileBanner(),  // Exemple: $user->getBanner()
+            'location'       => '',                    // Exemple: $user->getLocation()
+            'website'        => '',                    // Exemple: $user->getWebsite()
+            'editable'       => $isOwner,              // Indique si le profil peut être édité
         ];
 
         return $this->json([

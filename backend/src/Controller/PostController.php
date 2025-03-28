@@ -56,7 +56,8 @@ class PostController extends AbstractController
                 'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                 'likeCount'      => $post->getLikesCount(),
                 'liked'          => $liked,
-                'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png'
+                'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
+                'editable'       => $currentUserId !== null && $post->getUser()->getId() === $currentUserId,
             ];
         }
 
@@ -131,5 +132,25 @@ class PostController extends AbstractController
         $postService->create($payload, $user);
 
         return $this->json(['message' => 'Post créé avec succès.'], Response::HTTP_CREATED);
+    }
+    
+    #[Route('/api/posts/{id}', name: 'api_post_delete', methods: ['DELETE'])]
+    public function delete(Post $post, EntityManagerInterface $em): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+        }
+        if (!$user instanceof \App\Entity\User) {
+            throw new \LogicException('L\'utilisateur doit être une instance de App\Entity\User.');
+        }
+        if ($post->getUser()->getId() !== $user->getId()) {
+            return $this->json(['error' => 'Vous n\'êtes pas autorisé à supprimer ce post.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $em->remove($post);
+        $em->flush();
+
+        return $this->json(['message' => 'Post supprimé avec succès.'], Response::HTTP_OK);
     }
 }

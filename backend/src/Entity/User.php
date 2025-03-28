@@ -33,6 +33,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     
     #[ORM\Column]
     private ?string $profilePicture = null;
+    
+    #[ORM\Column]
+    private ?string $profileAvatar = null;
 
     private ?string $plainPassword = null;
 
@@ -45,6 +48,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->posts = new ArrayCollection();
     }
+    
+
+    
+    public function getProfileBanner(): ?string
+    {
+        return $this->profileAvatar;
+    }
+
+    public function setProfileBanner(?string $profileAvatar): self
+    {
+        $this->profileAvatar = $profileAvatar;
+        return $this;
+    }
+
 
     public function getProfilePicture(): ?string
     {
