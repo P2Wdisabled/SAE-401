@@ -30,37 +30,37 @@ class AdminController extends AbstractController
     }
 
     #[Route('/users/Accounts', name: 'users.AccountList', methods: ['GET'], format: 'json')]
-    public function index(Request $request, UserRepository $userRepository): Response
-    {
-        // Vérification de l'authentification et des droits admin
-        if ($response = $this->ensureAdmin()) {
-            return $response;
-        }
-        
-        $page = $request->query->getInt('page', 1);
-        $count = 50;
-        $offset = max(0, ($page - 1) * $count);
-
-        $paginator = $userRepository->paginateUsers($offset, $count);
-        $totalUsersCount = $paginator->count();
-        $previousPage = $page > 1 ? $page - 1 : null;
-        $nextPage = (($page * $count) < $totalUsersCount) ? $page + 1 : null;
-
-        $usersArray = [];
-        foreach ($paginator as $user) {
-            $usersArray[] = [
-                'id'       => $user->getId(),
-                'username' => $user->getUsername() ?? "Unnamed",
-                'email'    => $user->getEmail(),
-            ];
-        }
-
-        return $this->json([
-            'users'         => $usersArray,
-            'previous_page' => $previousPage,
-            'next_page'     => $nextPage,
-        ]);
+public function index(Request $request, UserRepository $userRepository): Response
+{
+    if ($response = $this->ensureAdmin()) {
+        return $response;
     }
+    
+    $page = $request->query->getInt('page', 1);
+    $count = 50;
+    $offset = max(0, ($page - 1) * $count);
+
+    $paginator = $userRepository->paginateUsers($offset, $count);
+    $totalUsersCount = $paginator->count();
+    $previousPage = $page > 1 ? $page - 1 : null;
+    $nextPage = (($page * $count) < $totalUsersCount) ? $page + 1 : null;
+
+    $usersArray = [];
+    foreach ($paginator as $user) {
+        $usersArray[] = [
+            'id'       => $user->getId(),
+            'username' => $user->getUsername() ?? "Unnamed",
+            'email'    => $user->getEmail(),
+            'blocked'  => $user->getBlocked(), // Statut de blocage
+        ];
+    }
+
+    return $this->json([
+        'users'         => $usersArray,
+        'previous_page' => $previousPage,
+        'next_page'     => $nextPage,
+    ]);
+}
 
     #[Route('/users/{id}', name: 'users.show', methods: ['GET'], format: 'json')]
     public function show(int $id, UserRepository $userRepository): Response
@@ -134,4 +134,28 @@ class AdminController extends AbstractController
         
         return $this->json(['admin' => true]);
     }
+
+
+    #[Route('/admin/users/{id}/toggle-block', name: 'admin_toggle_block', methods: ['POST'], format: 'json')]
+public function toggleBlock(int $id, UserRepository $userRepository, EntityManagerInterface $em): Response
+{
+    if ($response = $this->ensureAdmin()) {
+        return $response;
+    }
+    
+    $user = $userRepository->find($id);
+    if (!$user) {
+        return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
+    }
+    
+    // Inverse l'état de blocage
+    $user->setBlocked(!$user->getBlocked());
+    $em->flush();
+    
+    return $this->json([
+        'id'      => $user->getId(),
+        'blocked' => $user->getBlocked(),
+        'message' => $user->getBlocked() ? "Compte bloqué pour non respect des conditions d'utilisation." : "Compte débloqué."
+    ]);
+}
 }

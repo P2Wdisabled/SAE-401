@@ -54,6 +54,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Post::class, orphanRemoval: true)]
     #[ORM\OrderBy(['createdAt' => 'DESC'])]
     private Collection $posts;
+    
+    #[ORM\Column(type: "boolean")]
+    private bool $blocked = false;
 
     #[ORM\ManyToMany(targetEntity: self::class, inversedBy: 'followers')]
     #[ORM\JoinTable(name: 'user_following')]
@@ -67,6 +70,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->posts = new ArrayCollection();
         $this->following = new ArrayCollection();
         $this->followers = new ArrayCollection();
+    }
+
+    
+    public function getBlocked(): bool
+    {
+        return $this->blocked;
+    }
+
+    public function setBlocked(bool $blocked): self
+    {
+        $this->blocked = $blocked;
+        return $this;
     }
     
     public function getProfileBanner(): ?string

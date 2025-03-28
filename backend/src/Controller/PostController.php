@@ -49,16 +49,29 @@ class PostController extends AbstractController
                     }
                 }
             }
-            $postsArray[] = [
-                'id'             => $post->getId(),
-                'username'       => $post->getUser()->getUsername() ?? "Unnamed",
-                'content'        => $post->getContent(),
-                'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                'likeCount'      => $post->getLikesCount(),
-                'liked'          => $liked,
-                'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
-                'editable'       => $currentUserId !== null && $post->getUser()->getId() === $currentUserId,
-            ];
+            
+            // Si l'auteur est bloqué, remplacer le contenu et les likes
+            if ($post->getUser()->getBlocked()) {
+                $postsArray[] = [
+                    'id'             => $post->getId(),
+                    'username'       => $post->getUser()->getUsername() ?? "Unnamed",
+                    'content'        => "Ce compte a été bloqué pour non respect des conditions d’utilisation",
+                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount'      => 0,
+                    'liked'          => false,
+                    'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png'
+                ];
+            } else {
+                $postsArray[] = [
+                    'id'             => $post->getId(),
+                    'username'       => $post->getUser()->getUsername() ?? "Unnamed",
+                    'content'        => $post->getContent(),
+                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount'      => $post->getLikesCount(),
+                    'liked'          => $liked,
+                    'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png'
+                ];
+            }
         }
 
         return $this->json([

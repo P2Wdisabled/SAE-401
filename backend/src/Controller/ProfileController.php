@@ -1,4 +1,4 @@
-<?php
+<?php 
 // src/Controller/ProfileController.php
 
 namespace App\Controller;
@@ -31,11 +31,13 @@ class ProfileController extends AbstractController
         $isFollowed = false;
         if ($currentUser && $currentUser instanceof User) {
             $isOwner = $currentUser->getId() === $user->getId();
-            // Si ce n'est pas le profil de l'utilisateur connecté, on vérifie s'il suit le profil affiché
             if (!$isOwner) {
                 $isFollowed = $currentUser->getFollowing()->contains($user);
             }
         }
+        
+        // Vérifier si le compte est bloqué
+        $isBlocked = $user->getBlocked();
 
         // Récupération des posts (tweets) de l'utilisateur
         $posts = $user->getPosts()->toArray();
@@ -46,26 +48,36 @@ class ProfileController extends AbstractController
 
         $tweets = [];
         foreach ($posts as $post) {
-            $tweets[] = [
-                'id'         => $post->getId(),
-                'content'    => $post->getContent(),
-                'createdAt'  => $post->getCreatedAt()->format('c'),
-                'likeCount'  => $post->getLikesCount(),
-                'editable'   => $isOwner, // Le tweet est éditable uniquement si c'est le profil de l'utilisateur connecté
-            ];
+            if ($isBlocked) {
+                $tweets[] = [
+                    'id'         => $post->getId(),
+                    'content'    => "Ce compte a été bloqué pour non respect des conditions d’utilisation",
+                    'createdAt'  => $post->getCreatedAt()->format('c'),
+                    'likeCount'  => 0,
+                    'editable'   => $isOwner,
+                ];
+            } else {
+                $tweets[] = [
+                    'id'         => $post->getId(),
+                    'content'    => $post->getContent(),
+                    'createdAt'  => $post->getCreatedAt()->format('c'),
+                    'likeCount'  => $post->getLikesCount(),
+                    'editable'   => $isOwner,
+                ];
+            }
         }
 
         // Préparation des données de profil.
-        // Utilisez les méthodes existantes de votre entité User pour récupérer la bio, la localisation et le site web, ou définissez des valeurs par défaut.
         $profileData = [
             'username'       => $user->getUsername(),
-            'bio'            => method_exists($user, 'getBio') ? $user->getBio() : '', 
-            'profilePicture' => $user->getProfilePicture(), 
-            'banner'         => $user->getProfileBanner(),  
-            'location'       => method_exists($user, 'getLocation') ? $user->getLocation() : '', 
-            'website'        => method_exists($user, 'getWebsite') ? $user->getWebsite() : '', 
-            'editable'       => $isOwner,   // Indique si le profil peut être édité
-            'followed'       => $isFollowed // Indique si l'utilisateur connecté suit ce profil
+            'bio'            => method_exists($user, 'getBio') ? $user->getBio() : '',
+            'profilePicture' => $user->getProfilePicture(),
+            'banner'         => $user->getProfileBanner(),
+            'location'       => method_exists($user, 'getLocation') ? $user->getLocation() : '',
+            'website'        => method_exists($user, 'getWebsite') ? $user->getWebsite() : '',
+            'editable'       => $isOwner,
+            'followed'       => $isFollowed,
+            'blocked'        => $isBlocked,
         ];
 
         return $this->json([

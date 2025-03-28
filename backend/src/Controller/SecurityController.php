@@ -44,7 +44,6 @@ class SecurityController extends AbstractController
             );
         }
         
-        // Vérifier si l'utilisateur existe déjà
         $existingUser = $em->getRepository(User::class)->findOneBy(['email' => $email]);
         if ($existingUser) {
             return $this->json(
@@ -53,7 +52,6 @@ class SecurityController extends AbstractController
             );
         }
         
-        // Création du nouvel utilisateur
         $user = new User();
         $user->setEmail($email);
         $user->setUsername($username);
@@ -63,7 +61,6 @@ class SecurityController extends AbstractController
         $em->persist($user);
         $em->flush();
         
-        // Génération et stockage du token pour l'utilisateur nouvellement inscrit
         $token = $userService->generateTokenForUser($user);
         
         return $this->json(
@@ -86,7 +83,14 @@ class SecurityController extends AbstractController
             );
         }
         
-        // Génération et stockage du token en base pour l'utilisateur connecté
+        // Vérification du statut de blocage
+        if ($user->getBlocked()) {
+            return $this->json(
+                ['error' => 'Compte bloqué pour non respect des conditions d’utilisation.'],
+                JsonResponse::HTTP_FORBIDDEN
+            );
+        }
+        
         $token = $userService->generateTokenForUser($user);
         
         return $this->json([
@@ -99,7 +103,6 @@ class SecurityController extends AbstractController
     #[Route('/logout', name: 'app_logout', methods: ['DELETE'], defaults: ['_format' => 'json'])]
     public function logout(Request $request, EntityManagerInterface $em): JsonResponse
     {
-        // Récupération de l'en-tête Authorization
         $authHeader = $request->headers->get('Authorization');
         if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
             return $this->json(
@@ -110,7 +113,6 @@ class SecurityController extends AbstractController
         $rawToken = $matches[1];
         $hashedToken = hash('sha256', $rawToken);
 
-        // Recherche du token dans la base
         $apiToken = $em->getRepository(ApiToken::class)->findOneBy(['token' => $hashedToken]);
         if (!$apiToken) {
             return $this->json(
@@ -119,7 +121,6 @@ class SecurityController extends AbstractController
             );
         }
 
-        // Suppression du token
         $em->remove($apiToken);
         $em->flush();
 

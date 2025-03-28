@@ -1,7 +1,8 @@
+// src/components/Login.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import FormInput from "../ui/FormInput";
-import {useCheckToken} from "../components/Checker"; // Adapté selon votre arborescence
+import { useCheckToken } from "../components/Checker";
 import Button from "../ui/Button";
 
 function Login() {
@@ -12,13 +13,11 @@ function Login() {
 
   const navigate = useNavigate();
 
-  // Vérifie que l'email est au bon format
   const isEmailValid = (email: string): boolean => {
     const emailRegex = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/;
     return emailRegex.test(email);
   };
 
-  // Vérifie que le mot de passe respecte la politique de sécurité
   const isPasswordValid = (password: string): boolean => {
     const minLength = 8;
     const hasDigit = /[0-9]/.test(password);
@@ -28,12 +27,10 @@ function Login() {
     return password.length >= minLength && hasDigit && hasUpper && hasLower && hasSpecial;
   };
 
-  // Gère la soumission du formulaire
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
-    // Validation côté client
     if (!isEmailValid(email) || !isPasswordValid(password)) {
       setError("Email ou mot de passe incorrect");
       return;
@@ -48,13 +45,13 @@ function Login() {
         body: JSON.stringify(payload),
       });
 
+      const data = await response.json();
       if (response.ok) {
-        const data = await response.json();
-        // Stocker le token JWT dans le localStorage
         localStorage.setItem("token", data.token);
         navigate("/");
       } else {
-        setError("Email ou mot de passe incorrect");
+        // Afficher l'erreur renvoyée par l'API
+        setError(data.error || "Email ou mot de passe incorrect");
       }
     } catch (error) {
       console.error("Erreur lors de la requête:", error);
@@ -87,22 +84,21 @@ function Login() {
           onChange={handlePasswordChange}
         />
 
-        {/* Affichage du message d'erreur en cas d'informations erronées */}
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
         <div className="flex w-full max-w-sm justify-between">
-        <Button page="/landing" text="Retour" bg="bg-transparent" moreClasses="px-4 py-2 border border-gray-500 rounded-full 
-                         text-white 
-                         hover:bg-gray-700 
-                         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 
-                         active:bg-gray-600 
-                         transition"/>
-        <Button text="Se connecter" buttonType="submit" bg="bg-white" moreClasses="px-4 py-2 rounded-full text-black 
-                         font-semibold 
-                         hover:bg-gray-200 
-                         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-200 
-                         active:bg-gray-300 
-                         transition"/>
+          <Button 
+            page="/landing" 
+            text="Retour" 
+            bg="bg-transparent" 
+            moreClasses="px-4 py-2 border border-gray-500 rounded-full text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 active:bg-gray-600 transition"
+          />
+          <Button 
+            text="Se connecter" 
+            buttonType="submit" 
+            bg="bg-white" 
+            moreClasses="px-4 py-2 rounded-full text-black font-semibold hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-200 active:bg-gray-300 transition"
+          />
         </div>
       </form>
     </div>
