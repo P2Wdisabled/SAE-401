@@ -137,7 +137,7 @@ const Profile: React.FC = () => {
               content={tweet.content}
               profilePicture={profile.profilePicture || "default-profile.png"}
               initialLikeCount={tweet.likeCount || 0}
-              initialLiked={false} // Implémentez la logique du like si besoin
+              initialLiked={tweet.liked || false} // Implémentez la logique du like si besoin
               isOwner={profile.editable}
               onDelete={() => handleDeleteTweet(tweet.id)}
             />

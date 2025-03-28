@@ -36,6 +36,9 @@ class ProfileController extends AbstractController
             }
         }
         
+        $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
+        
+        
         $isBlocked = $user->getBlocked();
         $posts = $user->getPosts()->toArray();
         usort($posts, function ($a, $b) {
@@ -43,12 +46,22 @@ class ProfileController extends AbstractController
         });
         $tweets = [];
         foreach ($posts as $post) {
+            $liked = false;
+            if ($currentUserId !== null) {
+                foreach ($post->getLikes() as $like) {
+                    if ($like->getUser()->getId() === $currentUserId) {
+                        $liked = true;
+                        break;
+                    }
+                }
+            }
             if ($isBlocked) {
                 $tweets[] = [
                     'id'         => $post->getId(),
                     'content'    => "Ce compte a été bloqué pour non respect des conditions d’utilisation",
                     'createdAt'  => $post->getCreatedAt()->format('c'),
                     'likeCount'  => 0,
+                    'liked'          => false,
                     'editable'   => $isOwner,
                 ];
             } else {
@@ -57,6 +70,7 @@ class ProfileController extends AbstractController
                     'content'    => $post->getContent(),
                     'createdAt'  => $post->getCreatedAt()->format('c'),
                     'likeCount'  => $post->getLikesCount(),
+                    'liked'          => $liked,
                     'editable'   => $isOwner,
                 ];
             }
