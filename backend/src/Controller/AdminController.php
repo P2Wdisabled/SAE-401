@@ -134,6 +134,16 @@ public function index(Request $request, UserRepository $userRepository): Respons
         
         return $this->json(['admin' => true]);
     }
+    #[Route('/infos', name: 'admin.infos', methods: ['GET'])]
+public function infos(): Response
+{
+    ob_start();
+    phpinfo();
+    $content = ob_get_clean();
+
+    return new Response($content, 200, ['Content-Type' => 'text/html']);
+}
+
 
 
     #[Route('/admin/users/{id}/toggle-block', name: 'admin_toggle_block', methods: ['POST'], format: 'json')]

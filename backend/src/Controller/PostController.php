@@ -22,6 +22,7 @@ class PostController extends AbstractController
     #[Route('/api/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
     public function index(Request $request, PostRepository $postRepository): Response
     {
+        
         $currentUser = $this->getUser();
         $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
 

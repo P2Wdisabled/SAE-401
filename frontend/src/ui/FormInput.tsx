@@ -3,11 +3,12 @@ import React from "react";
 type InputProps = {
   label: string;
   type: string;
+  moreClasses?: string;
 } & React.InputHTMLAttributes<HTMLInputElement>;
 
-function FormInput({ label, type, ...rest }: InputProps) {
+function FormInput({ label, type, moreClasses = "", ...rest }: InputProps) {
   return (
-    <div className="relative w-72">
+    <div className={`relative w-72 ${moreClasses}`}>
       <input
         type={type}
         placeholder=" " /* Espace obligatoire pour déclencher :placeholder-shown */

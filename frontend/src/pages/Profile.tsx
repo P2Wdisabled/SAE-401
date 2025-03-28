@@ -114,9 +114,7 @@ const Profile: React.FC = () => {
         </div>
         <div className="mt-4">
           {profile.editable ? (
-            <button className="bg-blue-500 text-white px-4 py-2 rounded">
-              Editer le profil
-            </button>
+            <Button text="Editer le profil" page="/profile/edit" moreClasses="text-white px-4 py-2 rounded" bg="bg-blue-500"/>
           ) : (
             <Button 
               text={following ? "Ne plus suivre" : "Suivre"} 

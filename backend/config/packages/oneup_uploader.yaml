@@ -1,0 +1,8 @@
+oneup_uploader:
+    mappings:
+        profile_uploads:
+            frontend: dropzone
+            storage:
+                directory: '%kernel.project_dir%/public/uploads'
+            max_size: 100M
+            enable_progress: true

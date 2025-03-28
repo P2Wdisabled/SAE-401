@@ -1,4 +1,4 @@
-<?php 
+<?php
 // src/Controller/ProfileController.php
 
 namespace App\Controller;
@@ -9,23 +9,23 @@ use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
 class ProfileController extends AbstractController
 {
+    // Endpoint pour afficher le profil complet (déjà en place)
     #[Route('/profile/{username}', name: 'profile_show', methods: ['GET'])]
     public function show(
         string $username,
         UserRepository $userRepository,
         PostRepository $postRepository
     ): JsonResponse {
-        // Récupération de l'utilisateur par son username
         $user = $userRepository->findOneBy(['username' => $username]);
         if (!$user) {
             return $this->json(['error' => 'Utilisateur non trouvé.'], 404);
         }
         
-        // Vérification que l'utilisateur connecté est bien le propriétaire du profil affiché
         $currentUser = $this->getUser();
         $isOwner = false;
         $isFollowed = false;
@@ -36,16 +36,11 @@ class ProfileController extends AbstractController
             }
         }
         
-        // Vérifier si le compte est bloqué
         $isBlocked = $user->getBlocked();
-
-        // Récupération des posts (tweets) de l'utilisateur
         $posts = $user->getPosts()->toArray();
-        // Tri chronologique (du plus ancien au plus récent)
         usort($posts, function ($a, $b) {
             return $a->getCreatedAt() <=> $b->getCreatedAt();
         });
-
         $tweets = [];
         foreach ($posts as $post) {
             if ($isBlocked) {
@@ -66,8 +61,6 @@ class ProfileController extends AbstractController
                 ];
             }
         }
-
-        // Préparation des données de profil.
         $profileData = [
             'username'       => $user->getUsername(),
             'bio'            => method_exists($user, 'getBio') ? $user->getBio() : '',
@@ -79,11 +72,59 @@ class ProfileController extends AbstractController
             'followed'       => $isFollowed,
             'blocked'        => $isBlocked,
         ];
-
         return $this->json([
             'profile' => $profileData,
             'tweets'  => $tweets,
         ]);
+    }
+
+    // Endpoint pour récupérer les informations du profil de l'utilisateur connecté pour édition
+    #[Route('/api/profile/edit', name: 'api_profile_get_edit', methods: ['GET'])]
+    public function getProfileEdit(): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $profileData = [
+            'username'       => $currentUser->getUsername(),
+            'bio'            => $currentUser->getBio(),
+            'profilePicture' => $currentUser->getProfilePicture(),
+            'banner'         => $currentUser->getProfileBanner(),
+            'location'       => $currentUser->getLocation(),
+            'website'        => $currentUser->getWebsite(),
+        ];
+        return $this->json(['profile' => $profileData]);
+    }
+
+    // Endpoint pour mettre à jour le profil de l'utilisateur connecté
+    #[Route('/api/profile/edit', name: 'api_profile_edit', methods: ['PUT'])]
+    public function updateProfile(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $data = json_decode($request->getContent(), true);
+        if (isset($data['bio'])) {
+            $currentUser->setBio($data['bio']);
+        }
+        if (isset($data['profilePicture'])) {
+            $currentUser->setProfilePicture($data['profilePicture']);
+        }
+        if (isset($data['banner'])) {
+            $currentUser->setProfileBanner($data['banner']);
+        }
+        if (isset($data['location'])) {
+            $currentUser->setLocation($data['location']);
+        }
+        if (isset($data['website'])) {
+            $currentUser->setWebsite($data['website']);
+        }
+        $em->flush();
+        return $this->json(['message' => 'Profil mis à jour avec succès.']);
     }
 
     #[Route('/api/profile/{username}/follow', name: 'api_profile_toggle_follow', methods: ['POST'])]
@@ -98,7 +139,6 @@ class ProfileController extends AbstractController
         if (!$targetUser) {
             return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
         }
-
         if ($currentUser->getFollowing()->contains($targetUser)) {
             $currentUser->unfollow($targetUser);
             $action = 'unfollowed';
@@ -106,9 +146,7 @@ class ProfileController extends AbstractController
             $currentUser->follow($targetUser);
             $action = 'followed';
         }
-
         $em->flush();
-
         return $this->json([
             'message' => 'Action effectuée: ' . $action,
             'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
