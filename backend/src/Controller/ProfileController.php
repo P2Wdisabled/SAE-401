@@ -7,6 +7,7 @@ use App\Repository\UserRepository;
 use App\Repository\PostRepository;
 use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -27,8 +28,13 @@ class ProfileController extends AbstractController
         // Vérification que l'utilisateur connecté est bien le propriétaire du profil affiché
         $currentUser = $this->getUser();
         $isOwner = false;
+        $isFollowed = false;
         if ($currentUser && $currentUser instanceof User) {
             $isOwner = $currentUser->getId() === $user->getId();
+            // Si ce n'est pas le profil de l'utilisateur connecté, on vérifie s'il suit le profil affiché
+            if (!$isOwner) {
+                $isFollowed = $currentUser->getFollowing()->contains($user);
+            }
         }
 
         // Récupération des posts (tweets) de l'utilisateur
@@ -45,25 +51,58 @@ class ProfileController extends AbstractController
                 'content'    => $post->getContent(),
                 'createdAt'  => $post->getCreatedAt()->format('c'),
                 'likeCount'  => $post->getLikesCount(),
-                'editable'   => $isOwner, // Le tweet est éditable (ou supprimable) uniquement si l'utilisateur connecté est le propriétaire du profil
+                'editable'   => $isOwner, // Le tweet est éditable uniquement si c'est le profil de l'utilisateur connecté
             ];
         }
 
         // Préparation des données de profil.
-        // Remplacez les valeurs par les champs réels de votre entité User si vous les avez (bio, photo, etc.)
         $profileData = [
             'username'       => $user->getUsername(),
-            'bio'            => '',                    // Exemple: $user->getBio()
-            'profilePicture' => $user->getProfilePicture(), // Exemple: $user->getProfilePicture()
-            'banner'         => $user->getProfileBanner(),  // Exemple: $user->getBanner()
-            'location'       => '',                    // Exemple: $user->getLocation()
-            'website'        => '',                    // Exemple: $user->getWebsite()
-            'editable'       => $isOwner,              // Indique si le profil peut être édité
+            'bio'            => '', // Exemple: $user->getBio()
+            'profilePicture' => $user->getProfilePicture(), 
+            'banner'         => $user->getProfileBanner(),  
+            'location'       => '', // Exemple: $user->getLocation()
+            'website'        => '', // Exemple: $user->getWebsite()
+            'editable'       => $isOwner,   // Permet d’indiquer si le profil peut être édité
+            'followed'       => $isFollowed // Indique si l'utilisateur connecté suit ce profil
         ];
 
         return $this->json([
             'profile' => $profileData,
             'tweets'  => $tweets,
+        ]);
+    }
+
+
+    #[Route('/api/profile/{username}/follow', name: 'api_profile_toggle_follow', methods: ['POST'])]
+    public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+    {
+        // Récupérer l'utilisateur connecté
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        // Récupérer l'utilisateur cible (celui dont le profil est affiché)
+        $targetUser = $userRepository->findOneBy(['username' => $username]);
+        if (!$targetUser) {
+            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // Si l'utilisateur connecté suit déjà l'utilisateur cible, alors on unfollow, sinon on follow
+        if ($currentUser->getFollowing()->contains($targetUser)) {
+            $currentUser->unfollow($targetUser);
+            $action = 'unfollowed';
+        } else {
+            $currentUser->follow($targetUser);
+            $action = 'followed';
+        }
+
+        $em->flush();
+
+        return $this->json([
+            'message' => 'Action effectuée: ' . $action,
+            'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
         ]);
     }
 }

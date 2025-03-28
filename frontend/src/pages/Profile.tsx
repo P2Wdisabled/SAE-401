@@ -2,13 +2,34 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Tweet from "../ui/tweet";
+import Button from "../ui/Button";
 
 const Profile: React.FC = () => {
   const { username } = useParams<{ username: string }>();
   const [profile, setProfile] = useState<any>(null);
   const [tweets, setTweets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // État du follow initialisé à false par défaut (sera mis à jour via l'API)
+  const [following, setFollowing] = useState<boolean>(false);
   const navigate = useNavigate();
+
+  const toggleFollow = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`http://localhost:8080/api/profile/${username}/follow`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json"
+        }
+      });
+      const data = await response.json();
+      // Inverser l'état du follow après un succès
+      setFollowing(!following);
+    } catch (error) {
+      console.error("Erreur lors du follow/unfollow", error);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -33,6 +54,8 @@ const Profile: React.FC = () => {
       .then((data) => {
         setProfile(data.profile);
         setTweets(data.tweets);
+        // Initialiser l'état du follow avec la valeur renvoyée par l'API
+        setFollowing(data.profile.followed);
       })
       .catch((err) => {
         console.error(err);
@@ -87,14 +110,21 @@ const Profile: React.FC = () => {
             {profile.website}
           </a>
         </div>
-        {/* Affichage conditionnel du bouton d'édition */}
-        {profile.editable && (
-          <div className="mt-4">
+        <div className="mt-4">
+          {profile.editable ? (
+            // Si c'est le profil de l'utilisateur connecté, on affiche le bouton d'édition
             <button className="bg-blue-500 text-white px-4 py-2 rounded">
               Editer le profil
             </button>
-          </div>
-        )}
+          ) : (
+            // Sinon, on affiche le bouton follow/unfollow
+            <Button 
+              text={following ? "Ne plus suivre" : "Suivre"} 
+              onClick={toggleFollow} 
+              moreClasses="bg-blue-500 text-white px-4 py-2 rounded"
+            />
+          )}
+        </div>
       </div>
       <div className="mt-4 px-4">
         <h2 className="text-xl font-semibold mb-2 text-white">Tweets</h2>
@@ -110,7 +140,6 @@ const Profile: React.FC = () => {
               profilePicture={profile.profilePicture || "default-profile.png"}
               initialLikeCount={tweet.likeCount || 0}
               initialLiked={false} // Implémentez la logique du like si besoin
-              // Le tweet est supprimable si le profil est éditable par l'utilisateur connecté
               isOwner={profile.editable}
               onDelete={() => handleDeleteTweet(tweet.id)}
             />

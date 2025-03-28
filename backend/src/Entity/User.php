@@ -32,10 +32,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $password = null;
     
     #[ORM\Column]
-    private ?string $profilePicture = null;
+    private ?string $profilePicture = "https://vectorified.com/images/default-icon-16.png";
     
     #[ORM\Column]
-    private ?string $profileAvatar = null;
+    private ?string $profileAvatar = "https://static.vecteezy.com/system/resources/previews/000/701/690/large_2x/abstract-polygonal-banner-background-vector.jpg";
 
     private ?string $plainPassword = null;
 
@@ -44,9 +44,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OrderBy(['createdAt' => 'DESC'])]
     private Collection $posts;
 
+    #[ORM\ManyToMany(targetEntity: self::class, inversedBy: 'followers')]
+    #[ORM\JoinTable(name: 'user_following')]
+    private Collection $following;
+
+    #[ORM\ManyToMany(targetEntity: self::class, mappedBy: 'following')]
+    private Collection $followers;
+
     public function __construct()
     {
         $this->posts = new ArrayCollection();
+        $this->following = new ArrayCollection();
+        $this->followers = new ArrayCollection();
     }
     
 
@@ -183,5 +192,32 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             }
         }
         return $this;
+    }
+
+    
+    public function getFollowing(): Collection
+    {
+        return $this->following;
+    }
+
+    public function follow(self $user): self
+    {
+        if (!$this->following->contains($user)) {
+            $this->following[] = $user;
+        }
+        return $this;
+    }
+
+    public function unfollow(self $user): self
+    {
+        if ($this->following->contains($user)) {
+            $this->following->removeElement($user);
+        }
+        return $this;
+    }
+
+    public function getFollowers(): Collection
+    {
+        return $this->followers;
     }
 }
