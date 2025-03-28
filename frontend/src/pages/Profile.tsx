@@ -98,26 +98,26 @@ const Profile: React.FC = () => {
       </div>
       <div className="mt-16 px-4">
         <h1 className="text-2xl font-bold text-white">{profile.username}</h1>
-        <p className="text-white">{profile.bio}</p>
+        {profile.bio && <p className="text-white">{profile.bio}</p>}
         <div className="mt-2 flex space-x-4 text-gray-500">
-          <span>{profile.location}</span>
-          <a
-            href={profile.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500"
-          >
-            {profile.website}
-          </a>
+          {profile.location && <span>{profile.location}</span>}
+          {profile.website && (
+            <a
+              href={profile.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500"
+            >
+              {profile.website}
+            </a>
+          )}
         </div>
         <div className="mt-4">
           {profile.editable ? (
-            // Si c'est le profil de l'utilisateur connecté, on affiche le bouton d'édition
             <button className="bg-blue-500 text-white px-4 py-2 rounded">
               Editer le profil
             </button>
           ) : (
-            // Sinon, on affiche le bouton follow/unfollow
             <Button 
               text={following ? "Ne plus suivre" : "Suivre"} 
               onClick={toggleFollow} 

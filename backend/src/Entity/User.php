@@ -1,4 +1,5 @@
 <?php
+// src/Entity/User.php
 
 namespace App\Entity;
 
@@ -37,6 +38,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?string $profileAvatar = "https://static.vecteezy.com/system/resources/previews/000/701/690/large_2x/abstract-polygonal-banner-background-vector.jpg";
 
+    // Nouveaux champs pour le profil
+    #[ORM\Column(type: "text", nullable: true)]
+    private ?string $bio = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $location = "unknown";
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $website = null;
+
     private ?string $plainPassword = null;
 
     // Définition de la relation OneToMany avec Post
@@ -58,8 +69,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->followers = new ArrayCollection();
     }
     
-
-    
     public function getProfileBanner(): ?string
     {
         return $this->profileAvatar;
@@ -71,7 +80,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-
     public function getProfilePicture(): ?string
     {
         return $this->profilePicture;
@@ -82,6 +90,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->profilePicture = $profilePicture;
         return $this;
     }
+
     public function getId(): ?int
     {
         return $this->id;
@@ -109,11 +118,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->email;
     }
 
-    /**
-     * Renvoie l'identifiant de l'utilisateur.
-     * Ici, si tu souhaites utiliser l'email comme identifiant pour l'authentification,
-     * retourne l'email. Sinon, retourne le username.
-     */
     public function getUserIdentifier(): string
     {
         return $this->email;
@@ -125,7 +129,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getRoles(): array
     {
         $roles = $this->roles;
-        // garantit que l'utilisateur a au moins ROLE_USER
         $roles[] = 'ROLE_USER';
         return array_unique($roles);
     }
@@ -163,7 +166,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function eraseCredentials(): void
     {
-        // Efface toute donnée temporaire sensible
         // $this->plainPassword = null;
     }
 
@@ -194,7 +196,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    
     public function getFollowing(): Collection
     {
         return $this->following;
@@ -219,5 +220,40 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getFollowers(): Collection
     {
         return $this->followers;
+    }
+    
+    // Getters et setters pour les nouveaux champs
+
+    public function getBio(): ?string
+    {
+        return $this->bio;
+    }
+
+    public function setBio(?string $bio): self
+    {
+        $this->bio = $bio;
+        return $this;
+    }
+
+    public function getLocation(): ?string
+    {
+        return $this->location;
+    }
+
+    public function setLocation(?string $location): self
+    {
+        $this->location = $location;
+        return $this;
+    }
+
+    public function getWebsite(): ?string
+    {
+        return $this->website;
+    }
+
+    public function setWebsite(?string $website): self
+    {
+        $this->website = $website;
+        return $this;
     }
 }

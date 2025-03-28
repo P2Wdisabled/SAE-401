@@ -56,14 +56,15 @@ class ProfileController extends AbstractController
         }
 
         // Préparation des données de profil.
+        // Utilisez les méthodes existantes de votre entité User pour récupérer la bio, la localisation et le site web, ou définissez des valeurs par défaut.
         $profileData = [
             'username'       => $user->getUsername(),
-            'bio'            => '', // Exemple: $user->getBio()
+            'bio'            => method_exists($user, 'getBio') ? $user->getBio() : '', 
             'profilePicture' => $user->getProfilePicture(), 
             'banner'         => $user->getProfileBanner(),  
-            'location'       => '', // Exemple: $user->getLocation()
-            'website'        => '', // Exemple: $user->getWebsite()
-            'editable'       => $isOwner,   // Permet d’indiquer si le profil peut être édité
+            'location'       => method_exists($user, 'getLocation') ? $user->getLocation() : '', 
+            'website'        => method_exists($user, 'getWebsite') ? $user->getWebsite() : '', 
+            'editable'       => $isOwner,   // Indique si le profil peut être édité
             'followed'       => $isFollowed // Indique si l'utilisateur connecté suit ce profil
         ];
 
@@ -73,23 +74,19 @@ class ProfileController extends AbstractController
         ]);
     }
 
-
     #[Route('/api/profile/{username}/follow', name: 'api_profile_toggle_follow', methods: ['POST'])]
     public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
     {
-        // Récupérer l'utilisateur connecté
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
             return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
-        // Récupérer l'utilisateur cible (celui dont le profil est affiché)
         $targetUser = $userRepository->findOneBy(['username' => $username]);
         if (!$targetUser) {
             return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
         }
 
-        // Si l'utilisateur connecté suit déjà l'utilisateur cible, alors on unfollow, sinon on follow
         if ($currentUser->getFollowing()->contains($targetUser)) {
             $currentUser->unfollow($targetUser);
             $action = 'unfollowed';
