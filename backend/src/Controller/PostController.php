@@ -145,7 +145,7 @@ class PostController extends AbstractController
 
         return $this->json(['message' => 'Post créé avec succès.'], Response::HTTP_CREATED);
     }
-    
+
     #[Route('/api/posts/{id}', name: 'api_post_delete', methods: ['DELETE'])]
     public function delete(Post $post, EntityManagerInterface $em): JsonResponse
     {
@@ -164,5 +164,41 @@ class PostController extends AbstractController
         $em->flush();
 
         return $this->json(['message' => 'Post supprimé avec succès.'], Response::HTTP_OK);
+    }
+
+    // Nouvelle route pour éditer un post via PUT
+    #[Route('/api/posts/{id}', name: 'api_post_edit', methods: ['PUT'])]
+    public function edit(Post $post, Request $request, ValidatorInterface $validator, EntityManagerInterface $em): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+        }
+        $user = $this->getUser();
+        /** @var \App\Entity\User $user */
+        if ($post->getUser()->getId() !== $user->getId()) {
+            return $this->json(['error' => 'Vous n\'êtes pas autorisé à modifier ce post.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $content = $data['content'] ?? null;
+        $media = $data['media'] ?? [];
+
+        if (!$content || trim($content) === '') {
+            return $this->json(['error' => 'Le contenu du post ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $post->setContent($content);
+        $post->setMedia($media);
+
+        $em->flush();
+
+        return $this->json([
+            'id'         => $post->getId(),
+            'content'    => $post->getContent(),
+            'media'      => $post->getMedia(),
+            'likeCount'  => $post->getLikesCount(),
+            'createdAt'  => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+        ]);
     }
 }

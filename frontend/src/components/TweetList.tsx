@@ -18,7 +18,7 @@ function TweetList({ activeTab }: TweetListProps) {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const refreshInterval = 30; // secondes
 
-  // Réinitialisation des posts lorsque activeTab change
+  // Réinitialiser posts, page et hasMore quand activeTab change
   useEffect(() => {
     setPosts([]);
     setPage(0);
@@ -88,7 +88,6 @@ function TweetList({ activeTab }: TweetListProps) {
       setLoading(false);
       return;
     }
-    // Utiliser le même filtre pour le rafraîchissement
     const url =
       activeTab === "abonnements"
         ? `http://localhost:8080/api/posts?filter=following&page=0`
@@ -166,7 +165,6 @@ function TweetList({ activeTab }: TweetListProps) {
     };
   }, [autoRefreshEnabled, refreshInterval, activeTab]);
 
-  // Fonction pour retirer un tweet supprimé de l'affichage
   const handleDelete = (tweetId: number) => {
     setPosts((prevPosts) => prevPosts.filter((post) => post.id !== tweetId));
   };
@@ -216,7 +214,7 @@ function TweetList({ activeTab }: TweetListProps) {
           profilePicture={post.profilePicture || "default-profile.png"}
           initialLikeCount={post.likeCount || 0}
           initialLiked={post.liked || false}
-          media={post.media} // Passage de la prop media
+          media={post.media} // Transmission de la prop media
           isOwner={post.editable}
           onDelete={() => handleDelete(post.id)}
         />

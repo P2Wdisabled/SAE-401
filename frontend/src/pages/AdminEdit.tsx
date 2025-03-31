@@ -84,17 +84,15 @@ function EditAccount() {
       {error && <p className="text-red-500 mb-4">{error}</p>}
       {success && <p className="text-green-500 mb-4">{success}</p>}
       <FormInput
-        label="Nom d'utilisateur"
+        label={username}
         type="text"
-        value={username}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
           setUsername(e.target.value)
         }
       />
       <FormInput
-        label="Email"
+        label={email}
         type="email"
-        value={email}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
           setEmail(e.target.value)
         }

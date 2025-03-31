@@ -18,8 +18,8 @@ class PostRepository extends ServiceEntityRepository
     public function paginateAllOrderedByLatest(int $offset, int $count): Paginator
     {
         $query = $this->createQueryBuilder('p')
-            ->select('p', 'u') // Sélectionne le post et l'utilisateur lié
-            ->innerJoin('p.user', 'u') // Jointure sur la relation user (ManyToOne)
+            ->select('p', 'u')
+            ->innerJoin('p.user', 'u')
             ->orderBy('p.createdAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($count)
