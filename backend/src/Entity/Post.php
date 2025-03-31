@@ -30,6 +30,10 @@ class Post
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
+    #[ORM\Column(type: "json", nullable: true)]
+    #[Groups(['post:read'])]
+    private ?array $media = [];
+
     
 #[ORM\OneToMany(mappedBy: 'post', targetEntity: PostLike::class, cascade: ["remove"])]
 private Collection $likes;
@@ -37,6 +41,17 @@ private Collection $likes;
 public function __construct() {
     $this->likes = new ArrayCollection();
 }
+
+public function getMedia(): ?array
+    {
+        return $this->media;
+    }
+
+    public function setMedia(?array $media): self
+    {
+        $this->media = $media;
+        return $this;
+    }
 
 public function getLikes(): Collection
 {

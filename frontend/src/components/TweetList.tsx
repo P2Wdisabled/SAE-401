@@ -193,17 +193,17 @@ function TweetList({ activeTab }: TweetListProps) {
         {error && <p className="text-red-500">{error}</p>}
         {posts.map((post, index) => (
           <Tweet
-            key={post.id || index}
-            tweetId={post.id}
-            author={post.username ? post.username : "Unnamed"}
-            content={post.content}
-            profilePicture={post.profilePicture || "default-profile.png"}
-            initialLikeCount={post.likeCount || 0}
-            initialLiked={post.liked || false}
-            // Affichage du bouton "Supprimer" si le tweet appartient à l'utilisateur courant
-            isOwner={post.editable}
-            onDelete={() => handleDelete(post.id)}
-          />
+          key={post.id || index}
+          tweetId={post.id}
+          author={post.username ? post.username : "Unnamed"}
+          content={post.content}
+          profilePicture={post.profilePicture || "default-profile.png"}
+          initialLikeCount={post.likeCount || 0}
+          initialLiked={post.liked || false}
+          media={post.media}  // Passage de la prop media
+          isOwner={post.editable}
+          onDelete={() => handleDelete(post.id)}
+        />        
         ))}
         {loading && <p>Chargement...</p>}
       </main>

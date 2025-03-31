@@ -36,9 +36,7 @@ class ProfileController extends AbstractController
             }
         }
         
-        $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
-        
-        
+        $currentUserId = ($currentUser instanceof User) ? $currentUser->getId() : null;
         $isBlocked = $user->getBlocked();
         $posts = $user->getPosts()->toArray();
         usort($posts, function ($a, $b) {
@@ -55,23 +53,27 @@ class ProfileController extends AbstractController
                     }
                 }
             }
+            // Ajout du champ 'media' dans le tableau de données du tweet
+            $media = $post->getMedia() ?: [];
             if ($isBlocked) {
                 $tweets[] = [
-                    'id'         => $post->getId(),
-                    'content'    => "Ce compte a été bloqué pour non respect des conditions d’utilisation",
-                    'createdAt'  => $post->getCreatedAt()->format('c'),
-                    'likeCount'  => 0,
+                    'id'             => $post->getId(),
+                    'content'        => "Ce compte a été bloqué pour non respect des conditions d’utilisation",
+                    'createdAt'      => $post->getCreatedAt()->format('c'),
+                    'likeCount'      => 0,
                     'liked'          => false,
-                    'editable'   => $isOwner,
+                    'editable'       => $isOwner,
+                    'media'          => $media,
                 ];
             } else {
                 $tweets[] = [
-                    'id'         => $post->getId(),
-                    'content'    => $post->getContent(),
-                    'createdAt'  => $post->getCreatedAt()->format('c'),
-                    'likeCount'  => $post->getLikesCount(),
+                    'id'             => $post->getId(),
+                    'content'        => $post->getContent(),
+                    'createdAt'      => $post->getCreatedAt()->format('c'),
+                    'likeCount'      => $post->getLikesCount(),
                     'liked'          => $liked,
-                    'editable'   => $isOwner,
+                    'editable'       => $isOwner,
+                    'media'          => $media,
                 ];
             }
         }

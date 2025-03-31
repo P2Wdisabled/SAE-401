@@ -14,6 +14,7 @@ class CreatePostPayload
      * )
      */
     private ?string $content = null;
+    private ?array $media = [];
 
     public function getContent(): ?string
     {
@@ -23,6 +24,16 @@ class CreatePostPayload
     public function setContent(?string $content): self
     {
         $this->content = $content;
+        return $this;
+    }
+
+    
+    public function getMedia(): ?array {
+        return $this->media;
+    }
+
+    public function setMedia(?array $media): self {
+        $this->media = $media;
         return $this;
     }
 }

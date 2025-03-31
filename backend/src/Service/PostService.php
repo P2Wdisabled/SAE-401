@@ -1,5 +1,5 @@
 <?php
-
+// src/Service/PostService.php
 namespace App\Service;
 
 use App\Dto\Payload\CreatePostPayload;
@@ -13,19 +13,21 @@ class PostService
 
     public function __construct(EntityManagerInterface $entityManager)
     {
-         $this->entityManager = $entityManager;
+        $this->entityManager = $entityManager;
     }
 
     public function create(CreatePostPayload $payload, User $user): Post
     {
-         $post = new Post();
-         $post->setContent($payload->getContent());
-         $post->setCreatedAt(new \DateTimeImmutable());
-         $post->setUser($user);
-         
-         $this->entityManager->persist($post);
-         $this->entityManager->flush();
+        $post = new Post();
+        $post->setContent($payload->getContent());
+        $post->setCreatedAt(new \DateTime());
+        $post->setUser($user);
+        // Affectation du champ media avec les URLs récupérées depuis le payload
+        $post->setMedia($payload->getMedia());
 
-         return $post;
+        $this->entityManager->persist($post);
+        $this->entityManager->flush();
+
+        return $post;
     }
 }

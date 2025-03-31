@@ -60,7 +60,8 @@ class PostController extends AbstractController
                     'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                     'likeCount'      => 0,
                     'liked'          => false,
-                    'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png'
+                    'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
+                    'media'          => $post->getMedia() ?: [],
                 ];
             } else {
                 $postsArray[] = [
@@ -70,7 +71,8 @@ class PostController extends AbstractController
                     'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                     'likeCount'      => $post->getLikesCount(),
                     'liked'          => $liked,
-                    'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png'
+                    'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
+                    'media'          => $post->getMedia() ?: [],
                 ];
             }
         }
@@ -113,40 +115,43 @@ class PostController extends AbstractController
     }
 
     #[Route('/api/posts', name: 'api_post_create', methods: ['POST'])]
-    public function create(
-        Request $request,
-        ValidatorInterface $validator,
-        PostService $postService
-    ): JsonResponse {
-        $user = $this->getUser();
-
-        if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        $data = json_decode($request->getContent(), true);
-        $content = $data['content'] ?? null;
-
-        if (!$content || trim($content) === '') {
-            return $this->json(['error' => 'Le contenu du post ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
-        }
-
-        $payload = new CreatePostPayload();
-        $payload->setContent($content);
-
-        $errors = $validator->validate($payload);
-        if (count($errors) > 0) {
-            $errorMessages = [];
-            foreach ($errors as $error) {
-                $errorMessages[$error->getPropertyPath()] = $error->getMessage();
-            }
-            return $this->json(['errors' => $errorMessages], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        $postService->create($payload, $user);
-
-        return $this->json(['message' => 'Post créé avec succès.'], Response::HTTP_CREATED);
+public function create(
+    Request $request,
+    ValidatorInterface $validator,
+    PostService $postService
+): JsonResponse {
+    $user = $this->getUser();
+    if (!$user) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
     }
+
+    $data = json_decode($request->getContent(), true);
+    $content = $data['content'] ?? null;
+    // Récupération du tableau d'URLs de médias (peut être vide)
+    $media = $data['media'] ?? [];
+
+    if (!$content || trim($content) === '') {
+        return $this->json(['error' => 'Le contenu du post ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+    }
+
+    $payload = new CreatePostPayload();
+    $payload->setContent($content);
+    // Assurez-vous que la classe CreatePostPayload possède une propriété "media" et son setter
+    $payload->setMedia($media);
+
+    $errors = $validator->validate($payload);
+    if (count($errors) > 0) {
+        $errorMessages = [];
+        foreach ($errors as $error) {
+            $errorMessages[$error->getPropertyPath()] = $error->getMessage();
+        }
+        return $this->json(['errors' => $errorMessages], Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    $postService->create($payload, $user);
+
+    return $this->json(['message' => 'Post créé avec succès.'], Response::HTTP_CREATED);
+}
     
     #[Route('/api/posts/{id}', name: 'api_post_delete', methods: ['DELETE'])]
     public function delete(Post $post, EntityManagerInterface $em): JsonResponse

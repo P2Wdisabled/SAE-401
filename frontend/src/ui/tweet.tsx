@@ -1,4 +1,3 @@
-// src/ui/Tweet.tsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
@@ -10,6 +9,7 @@ type TweetProps = {
   initialLikeCount: number;
   initialLiked: boolean;
   isOwner: boolean;
+  media?: string[]; // Ajout de la propriété pour les URLs des médias
   onDelete?: () => void;
 };
 
@@ -20,6 +20,7 @@ const Tweet: React.FC<TweetProps> = ({
   profilePicture,
   initialLikeCount,
   initialLiked,
+  media,
   isOwner,
   onDelete,
 }) => {
@@ -67,7 +68,6 @@ const Tweet: React.FC<TweetProps> = ({
         console.error("Erreur lors de la suppression du tweet");
         return;
       }
-      // Appel de la fonction de callback pour retirer le tweet de l'affichage
       if (onDelete) {
         onDelete();
       }
@@ -86,6 +86,30 @@ const Tweet: React.FC<TweetProps> = ({
           <p className="text-white font-semibold">{author}</p>
         </Link>
         <p className="text-gray-300">{content}</p>
+
+        {/* Affichage des médias associés, s'il y en a */}
+        {media && media.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {media.map((url, index) =>
+              url.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                <img
+                  key={index}
+                  src={url}
+                  alt={`media-${index}`}
+                  className="max-h-60 object-cover"
+                />
+              ) : (
+                <video
+                  key={index}
+                  src={url}
+                  controls
+                  className="max-h-60 object-cover"
+                />
+              )
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-4 mt-2">
           <div onClick={toggleLike} className="flex items-center gap-1 cursor-pointer">
             {liked ? (

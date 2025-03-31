@@ -9,7 +9,6 @@ const Profile: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [tweets, setTweets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  // État du follow initialisé à false par défaut (sera mis à jour via l'API)
   const [following, setFollowing] = useState<boolean>(false);
   const navigate = useNavigate();
 
@@ -20,11 +19,10 @@ const Profile: React.FC = () => {
         method: "POST",
         headers: {
           "Authorization": "Bearer " + token,
-          "Content-Type": "application/json"
-        }
+          "Content-Type": "application/json",
+        },
       });
       const data = await response.json();
-      // Inverser l'état du follow après un succès
       setFollowing(!following);
     } catch (error) {
       console.error("Erreur lors du follow/unfollow", error);
@@ -37,7 +35,6 @@ const Profile: React.FC = () => {
       navigate("/landing");
       return;
     }
-    // Appel vers l'API pour récupérer les données de profil et les tweets
     fetch(`http://localhost:8080/profile/${username}`, {
       method: "GET",
       headers: {
@@ -54,7 +51,6 @@ const Profile: React.FC = () => {
       .then((data) => {
         setProfile(data.profile);
         setTweets(data.tweets);
-        // Initialiser l'état du follow avec la valeur renvoyée par l'API
         setFollowing(data.profile.followed);
       })
       .catch((err) => {
@@ -65,7 +61,6 @@ const Profile: React.FC = () => {
       });
   }, [username, navigate]);
 
-  // Fonction pour retirer un tweet supprimé de l'affichage
   const handleDeleteTweet = (tweetId: number) => {
     setTweets((prevTweets) => prevTweets.filter((tweet) => tweet.id !== tweetId));
   };
@@ -114,7 +109,12 @@ const Profile: React.FC = () => {
         </div>
         <div className="mt-4">
           {profile.editable ? (
-            <Button text="Editer le profil" page="/profile/edit" moreClasses="text-white px-4 py-2 rounded" bg="bg-blue-500"/>
+            <Button
+              text="Editer le profil"
+              page="/profile/edit"
+              moreClasses="text-white px-4 py-2 rounded"
+              bg="bg-blue-500"
+            />
           ) : (
             <Button 
               text={following ? "Ne plus suivre" : "Suivre"} 
@@ -137,7 +137,8 @@ const Profile: React.FC = () => {
               content={tweet.content}
               profilePicture={profile.profilePicture || "default-profile.png"}
               initialLikeCount={tweet.likeCount || 0}
-              initialLiked={tweet.liked || false} // Implémentez la logique du like si besoin
+              initialLiked={tweet.liked || false}
+              media={tweet.media}  // Transmission de la propriété media
               isOwner={profile.editable}
               onDelete={() => handleDeleteTweet(tweet.id)}
             />
