@@ -37,7 +37,12 @@ class ProfileController extends AbstractController
         }
         
         $currentUserId = ($currentUser instanceof User) ? $currentUser->getId() : null;
-        $isBlocked = $user->getBlocked();
+        $isBlocked = $user->getBlocked(); // bloqué par l'admin
+        $userBlocked = false;
+        if ($currentUser instanceof User && !$isOwner) {
+            // Vérifier si l'utilisateur connecté a bloqué le profil cible
+            $userBlocked = $currentUser->getBlockedUsers()->contains($user);
+        }
         $posts = $user->getPosts()->toArray();
         usort($posts, function ($a, $b) {
             return $a->getCreatedAt() <=> $b->getCreatedAt();
@@ -87,6 +92,7 @@ class ProfileController extends AbstractController
             'editable'       => $isOwner,
             'followed'       => $isFollowed,
             'blocked'        => $isBlocked,
+            'blockedUsers'   => $userBlocked,
         ];
         return $this->json([
             'profile' => $profileData,
@@ -143,6 +149,7 @@ class ProfileController extends AbstractController
         return $this->json(['message' => 'Profil mis à jour avec succès.']);
     }
 
+    // Endpoint pour suivre/désabonner un utilisateur
     #[Route('/api/profile/{username}/follow', name: 'api_profile_toggle_follow', methods: ['POST'])]
     public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
     {
@@ -168,4 +175,58 @@ class ProfileController extends AbstractController
             'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
         ]);
     }
+
+    // Nouvelle route pour bloquer/débloquer un utilisateur
+    #[Route('/api/profile/{username}/block', name: 'api_profile_toggle_block', methods: ['POST'])]
+    public function toggleBlock(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $targetUser = $userRepository->findOneBy(['username' => $username]);
+        if (!$targetUser) {
+            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+        }
+        // Ici, nous supposons que l'entité User possède une relation ManyToMany "blockedUsers"
+        if ($currentUser->getBlockedUsers()->contains($targetUser)) {
+            $currentUser->unblock($targetUser);
+            $action = 'unblocked';
+        } else {
+            $currentUser->block($targetUser);
+            // Si l'utilisateur était suivi, le désabonner automatiquement
+            if ($currentUser->getFollowing()->contains($targetUser)) {
+                $currentUser->unfollow($targetUser);
+            }
+            $action = 'blocked';
+        }
+        $em->flush();
+        return $this->json([
+            'message' => "Utilisateur {$action} avec succès.",
+            'blockedUsers' => $currentUser->getBlockedUsers()->map(fn($user) => $user->getUsername())->toArray(),
+        ]);
+    }
+
+    #[Route('/api/profile/blocked', name: 'api_profile_blocked_list', methods: ['GET'])]
+public function blockedList(): JsonResponse
+{
+    /** @var User|null $currentUser */
+    $currentUser = $this->getUser();
+    if (!$currentUser instanceof User) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    }
+
+    // Récupérer les utilisateurs bloqués par l'utilisateur connecté
+    $blockedUsers = $currentUser->getBlockedUsers()->map(function(User $user) {
+        return [
+            'username' => $user->getUsername(),
+            'profilePicture' => $user->getProfilePicture(),
+            // Ajoutez d'autres champs si besoin
+        ];
+    })->toArray();
+
+    return $this->json(['blockedUsers' => $blockedUsers]);
+}
+
 }

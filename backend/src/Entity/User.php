@@ -65,14 +65,40 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\ManyToMany(targetEntity: self::class, mappedBy: 'following')]
     private Collection $followers;
 
+    
+#[ORM\ManyToMany(targetEntity: self::class)]
+#[ORM\JoinTable(name: 'user_blocked')]
+private Collection $blockedUsers;
+
     public function __construct()
     {
         $this->posts = new ArrayCollection();
         $this->following = new ArrayCollection();
         $this->followers = new ArrayCollection();
+        $this->blockedUsers = new ArrayCollection();
     }
 
     
+public function getBlockedUsers(): Collection
+{
+    return $this->blockedUsers;
+}
+
+public function block(self $user): self
+{
+    if (!$this->blockedUsers->contains($user)) {
+        $this->blockedUsers[] = $user;
+    }
+    return $this;
+}
+
+public function unblock(self $user): self
+{
+    if ($this->blockedUsers->contains($user)) {
+        $this->blockedUsers->removeElement($user);
+    }
+    return $this;
+}
     public function getBlocked(): bool
     {
         return $this->blocked;

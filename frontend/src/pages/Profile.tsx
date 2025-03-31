@@ -1,5 +1,4 @@
-// src/components/Profile.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Tweet from "../ui/tweet";
 import Button from "../ui/Button";
@@ -10,26 +9,10 @@ const Profile: React.FC = () => {
   const [tweets, setTweets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState<boolean>(false);
+  const [BlockState, setBlockState] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const toggleFollow = async () => {
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(`http://localhost:8080/api/profile/${username}/follow`, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
-      const data = await response.json();
-      setFollowing(!following);
-    } catch (error) {
-      console.error("Erreur lors du follow/unfollow", error);
-    }
-  };
-
-  useEffect(() => {
+  const fetchProfile = useCallback(() => {
     const token = localStorage.getItem("token");
     if (!token) {
       navigate("/landing");
@@ -52,6 +35,9 @@ const Profile: React.FC = () => {
         setProfile(data.profile);
         setTweets(data.tweets);
         setFollowing(data.profile.followed);
+        // Vérifier si le profil courant est dans la liste
+        setBlockState(data.profile.blockedUsers);
+        // data.profile.blocked correspond au blocage admin, on ne met pas à jour userBlocked ici
       })
       .catch((err) => {
         console.error(err);
@@ -60,6 +46,53 @@ const Profile: React.FC = () => {
         setLoading(false);
       });
   }, [username, navigate]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+
+  const toggleFollow = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`http://localhost:8080/api/profile/${username}/follow`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      if (data.error) {
+        console.error(data.error);
+      } else {
+        setFollowing(!following);
+      }
+    } catch (error) {
+      console.error("Erreur lors du follow/unfollow", error);
+    }
+  };
+
+  const toggleBlock = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`http://localhost:8080/api/profile/${username}/block`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      // Vérifier si le profil courant est dans la liste
+      setBlockState(!BlockState);
+      if (BlockState && following) {
+        setFollowing(false);
+      }
+    } catch (error) {
+      console.error("Erreur lors du blocage/déblocage", error);
+    }
+  };
 
   const handleDeleteTweet = (tweetId: number) => {
     setTweets((prevTweets) => prevTweets.filter((tweet) => tweet.id !== tweetId));
@@ -78,6 +111,7 @@ const Profile: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Bannière et photo de profil */}
       <div className="relative">
         <img src={profile.banner} alt="Bannière" className="w-full h-48 object-cover" />
         <img
@@ -92,21 +126,46 @@ const Profile: React.FC = () => {
         <div className="mt-2 flex space-x-4 text-gray-500">
           {profile.location && <span>{profile.location}</span>}
           {profile.website && (
-            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+            <a
+              href={profile.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500"
+            >
               {profile.website}
             </a>
           )}
         </div>
-        <div className="mt-4">
+        <div className="mt-4 flex gap-2">
           {profile.editable ? (
-            <Button
-              text="Editer le profil"
-              page="/profile/edit"
-              moreClasses="text-white px-4 py-2 rounded"
-              bg="bg-blue-500"
-            />
+            <>
+              <Button
+                text="Editer le profil"
+                page="/profile/edit"
+                moreClasses="text-white px-4 py-2 rounded"
+                bg="bg-blue-500"
+              />
+              <Button
+                text="Liste des utilisateurs bloqués"
+                page="/profile/blocked"
+                moreClasses="text-white px-4 py-2 rounded"
+                bg="bg-red-500"
+              />
+            </>
           ) : (
-            <Button text={following ? "Ne plus suivre" : "Suivre"} onClick={toggleFollow} moreClasses="bg-blue-500 text-white px-4 py-2 rounded" />
+            <>
+              <Button
+                text={following ? "Ne plus suivre" : "Suivre"}
+                onClick={toggleFollow}
+                moreClasses="bg-blue-500 text-white px-4 py-2 rounded"
+              />
+              {/* N'afficher le bouton de blocage que si le compte n'est pas bloqué par l'admin */}
+                <Button
+                  text={BlockState  ? "Débloquer" : "Bloquer"}
+                  onClick={toggleBlock}
+                  moreClasses="bg-red-500 text-white px-4 py-2 rounded"
+                />
+            </>
           )}
         </div>
       </div>
@@ -125,7 +184,7 @@ const Profile: React.FC = () => {
               initialLikeCount={tweet.likeCount || 0}
               initialLiked={tweet.liked || false}
               media={tweet.media}
-              replies={tweet.replies} // Transmission des réponses
+              replies={tweet.replies}
               isOwner={profile.editable}
               onDelete={() => handleDeleteTweet(tweet.id)}
             />

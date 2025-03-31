@@ -10,6 +10,7 @@ import Dashboard from "../pages/AdminDashboard";
 import EditAccount from "../pages/AdminEdit";
 import Profile from "../pages/Profile";
 import EditProfile from "../pages/EditProfile";
+import BlockedProfile from "../pages/BlockedProfile";
 
 function AppRouter() {
   return (
@@ -23,6 +24,7 @@ function AppRouter() {
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/profile/edit" element={<EditProfile />} />
+          <Route path="/profile/blocked" element={<BlockedProfile />} />
           <Route path="/profile/:username" element={<Profile />} />
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/edit/:id" element={<EditAccount />} />

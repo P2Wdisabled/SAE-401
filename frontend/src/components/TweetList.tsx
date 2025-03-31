@@ -186,7 +186,7 @@ function TweetList({ activeTab }: TweetListProps) {
               />
             </svg>
           }
-          moreClasses="bg-[#1DA1F2] flex items-center justify-center text-white w-15 h-15 px-4 py-2 rounded hover:bg-[#1A91DA] transition absolute bottom-1/12 left-1/2 right-1/2"
+          moreClasses="bg-[#1DA1F2] flex items-center justify-center text-white w-15 h-15 px-4 py-2 rounded hover:bg-[#1A91DA] transition absolute top-1/2 left-1/2 right-1/2"
           onClick={refreshPosts}
         />
         <div className="flex items-center">
