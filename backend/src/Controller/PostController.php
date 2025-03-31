@@ -19,6 +19,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class PostController extends AbstractController
 {
+    
     #[Route('/api/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
     public function index(Request $request, PostRepository $postRepository): Response
     {
@@ -29,7 +30,7 @@ class PostController extends AbstractController
         $count = 50;
         $offset = max(0, ($page - 1) * $count);
 
-        // Vérifier le paramètre de filtre pour afficher uniquement les posts des personnes suivies
+        // Filtrage : si le paramètre "filter" vaut "following", on récupère uniquement les posts des personnes suivies
         $filter = $request->query->get('filter');
         if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
             /** @var \App\Entity\User $currentUser */
@@ -58,7 +59,7 @@ class PostController extends AbstractController
                     }
                 }
             }
-            $postsArray[] = [
+            $tweetData = [
                 'id'             => $post->getId(),
                 'username'       => $post->getUser()->getUsername() ?? "Unnamed",
                 'content'        => $post->getUser()->getBlocked()
@@ -70,6 +71,20 @@ class PostController extends AbstractController
                 'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
                 'media'          => $post->getMedia() ?: [],
             ];
+            // Intégrer les réponses
+            $repliesArray = [];
+            foreach ($post->getReplies() as $reply) {
+                $repliesArray[] = [
+                    'id'             => $reply->getId(),
+                    'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
+                    'content'        => $reply->getContent(),
+                    'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
+                    'media'          => $reply->getMedia() ?: [],
+                ];
+            }
+            $tweetData['replies'] = $repliesArray;
+            $postsArray[] = $tweetData;
         }
 
         return $this->json([
@@ -145,7 +160,7 @@ class PostController extends AbstractController
 
         return $this->json(['message' => 'Post créé avec succès.'], Response::HTTP_CREATED);
     }
-
+    
     #[Route('/api/posts/{id}', name: 'api_post_delete', methods: ['DELETE'])]
     public function delete(Post $post, EntityManagerInterface $em): JsonResponse
     {
@@ -166,39 +181,40 @@ class PostController extends AbstractController
         return $this->json(['message' => 'Post supprimé avec succès.'], Response::HTTP_OK);
     }
 
-    // Nouvelle route pour éditer un post via PUT
-    #[Route('/api/posts/{id}', name: 'api_post_edit', methods: ['PUT'])]
-    public function edit(Post $post, Request $request, ValidatorInterface $validator, EntityManagerInterface $em): JsonResponse
+    #[Route('/api/posts/{id}/reply', name: 'api_post_reply', methods: ['POST'])]
+    public function reply(Post $post, Request $request, ValidatorInterface $validator, EntityManagerInterface $em): JsonResponse
     {
+        
         $user = $this->getUser();
+        /** @var \App\Entity\User $user */
         if (!$user) {
             return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
         }
-        $user = $this->getUser();
-        /** @var \App\Entity\User $user */
-        if ($post->getUser()->getId() !== $user->getId()) {
-            return $this->json(['error' => 'Vous n\'êtes pas autorisé à modifier ce post.'], Response::HTTP_FORBIDDEN);
-        }
-
         $data = json_decode($request->getContent(), true);
         $content = $data['content'] ?? null;
         $media = $data['media'] ?? [];
 
         if (!$content || trim($content) === '') {
-            return $this->json(['error' => 'Le contenu du post ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+            return $this->json(['error' => 'Le contenu de la réponse ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
         }
 
-        $post->setContent($content);
-        $post->setMedia($media);
+        $reply = new Post();
+        $reply->setContent($content);
+        $reply->setMedia($media);
+        $reply->setCreatedAt(new \DateTime());
+        $reply->setUser($user);
+        $reply->setParent($post);
 
+        $em->persist($reply);
         $em->flush();
 
         return $this->json([
-            'id'         => $post->getId(),
-            'content'    => $post->getContent(),
-            'media'      => $post->getMedia(),
-            'likeCount'  => $post->getLikesCount(),
-            'createdAt'  => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-        ]);
+            'id'             => $reply->getId(),
+            'content'        => $reply->getContent(),
+            'media'          => $reply->getMedia() ?: [],
+            'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+            'author'         => $user->getUsername(),
+            'profilePicture' => $user->getProfilePicture(),
+        ], Response::HTTP_CREATED);
     }
 }

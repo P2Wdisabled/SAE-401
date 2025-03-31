@@ -34,7 +34,6 @@ function TweetList({ activeTab }: TweetListProps) {
       navigate("/landing");
       return;
     }
-    // Ajout du paramètre filter si l'onglet actif est "abonnements"
     const url =
       activeTab === "abonnements"
         ? `http://localhost:8080/api/posts?filter=following&page=${pageNum}`
@@ -129,7 +128,6 @@ function TweetList({ activeTab }: TweetListProps) {
       });
   };
 
-  // Chargement initial et pagination
   useEffect(() => {
     fetchPosts(0);
   }, []);
@@ -148,7 +146,6 @@ function TweetList({ activeTab }: TweetListProps) {
         setPage((prevPage) => prevPage + 1);
       }
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasMore, loading]);
@@ -214,7 +211,8 @@ function TweetList({ activeTab }: TweetListProps) {
           profilePicture={post.profilePicture || "default-profile.png"}
           initialLikeCount={post.likeCount || 0}
           initialLiked={post.liked || false}
-          media={post.media} // Transmission de la prop media
+          media={post.media}
+          replies={post.replies} // Transmission des réponses
           isOwner={post.editable}
           onDelete={() => handleDelete(post.id)}
         />

@@ -78,13 +78,8 @@ const Profile: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Bannière et photo de profil */}
       <div className="relative">
-        <img
-          src={profile.banner}
-          alt="Bannière"
-          className="w-full h-48 object-cover"
-        />
+        <img src={profile.banner} alt="Bannière" className="w-full h-48 object-cover" />
         <img
           src={profile.profilePicture}
           alt="Photo de profil"
@@ -97,12 +92,7 @@ const Profile: React.FC = () => {
         <div className="mt-2 flex space-x-4 text-gray-500">
           {profile.location && <span>{profile.location}</span>}
           {profile.website && (
-            <a
-              href={profile.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500"
-            >
+            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-blue-500">
               {profile.website}
             </a>
           )}
@@ -116,11 +106,7 @@ const Profile: React.FC = () => {
               bg="bg-blue-500"
             />
           ) : (
-            <Button 
-              text={following ? "Ne plus suivre" : "Suivre"} 
-              onClick={toggleFollow} 
-              moreClasses="bg-blue-500 text-white px-4 py-2 rounded"
-            />
+            <Button text={following ? "Ne plus suivre" : "Suivre"} onClick={toggleFollow} moreClasses="bg-blue-500 text-white px-4 py-2 rounded" />
           )}
         </div>
       </div>
@@ -138,7 +124,8 @@ const Profile: React.FC = () => {
               profilePicture={profile.profilePicture || "default-profile.png"}
               initialLikeCount={tweet.likeCount || 0}
               initialLiked={tweet.liked || false}
-              media={tweet.media}  // Transmission de la propriété media
+              media={tweet.media}
+              replies={tweet.replies} // Transmission des réponses
               isOwner={profile.editable}
               onDelete={() => handleDeleteTweet(tweet.id)}
             />

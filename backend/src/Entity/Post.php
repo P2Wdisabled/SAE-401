@@ -1,4 +1,5 @@
 <?php
+// src/Entity/Post.php
 
 namespace App\Entity;
 
@@ -30,38 +31,27 @@ class Post
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
+    // Champ pour stocker les médias (images, vidéos, etc.)
     #[ORM\Column(type: "json", nullable: true)]
     #[Groups(['post:read'])]
     private ?array $media = [];
 
-    
-#[ORM\OneToMany(mappedBy: 'post', targetEntity: PostLike::class, cascade: ["remove"])]
-private Collection $likes;
+    // Relation pour les réponses (self-referencing)
+    #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'replies')]
+    #[ORM\JoinColumn(name: "parent_id", referencedColumnName: "id", nullable: true)]
+    private ?self $parent = null;
 
-public function __construct() {
-    $this->likes = new ArrayCollection();
-}
+    #[ORM\OneToMany(mappedBy: 'parent', targetEntity: self::class)]
+    #[ORM\OrderBy(['createdAt' => 'ASC'])]
+    private Collection $replies;
 
-public function getMedia(): ?array
-    {
-        return $this->media;
+    #[ORM\OneToMany(mappedBy: 'post', targetEntity: PostLike::class, cascade: ["remove"])]
+    private Collection $likes;
+
+    public function __construct() {
+        $this->likes = new ArrayCollection();
+        $this->replies = new ArrayCollection();
     }
-
-    public function setMedia(?array $media): self
-    {
-        $this->media = $media;
-        return $this;
-    }
-
-public function getLikes(): Collection
-{
-    return $this->likes;
-}
-
-public function getLikesCount(): int
-{
-    return $this->likes->count();
-}
 
     public function getId(): ?int
     {
@@ -76,7 +66,6 @@ public function getLikesCount(): int
     public function setContent(string $content): static
     {
         $this->content = $content;
-
         return $this;
     }
 
@@ -88,7 +77,6 @@ public function getLikesCount(): int
     public function setCreatedAt(\DateTimeInterface $createdAt): static
     {
         $this->createdAt = $createdAt;
-
         return $this;
     }
 
@@ -100,7 +88,68 @@ public function getLikesCount(): int
     public function setUser(?User $user): static
     {
         $this->user = $user;
-
         return $this;
+    }
+
+    public function getMedia(): ?array
+    {
+        return $this->media;
+    }
+
+    public function setMedia(?array $media): self
+    {
+        $this->media = $media;
+        return $this;
+    }
+
+    public function getParent(): ?self
+    {
+        return $this->parent;
+    }
+
+    public function setParent(?self $parent): self
+    {
+        $this->parent = $parent;
+        return $this;
+    }
+
+    /**
+     * @return Collection|self[]
+     */
+    public function getReplies(): Collection
+    {
+        return $this->replies;
+    }
+
+    public function addReply(self $reply): self
+    {
+        if (!$this->replies->contains($reply)) {
+            $this->replies[] = $reply;
+            $reply->setParent($this);
+        }
+        return $this;
+    }
+
+    public function removeReply(self $reply): self
+    {
+        if ($this->replies->removeElement($reply)) {
+            if ($reply->getParent() === $this) {
+                $reply->setParent(null);
+            }
+        }
+        return $this;
+    }
+
+    /**
+     * @return Collection|PostLike[]
+     */
+    public function getLikes(): Collection
+    {
+        return $this->likes;
+    }
+
+    public function getLikesCount(): int
+    {
+        return $this->likes->count();
     }
 }
