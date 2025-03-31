@@ -28,7 +28,7 @@ function Home() {
             <span className="absolute left-0 w-1/2 bottom-0 h-[3px] bg-[#1DA1F2] transition"></span>
           )}
         </button>
-        {/* <button
+         <button
           className={`py-2 ${activeTab === "abonnements" ? "text-white" : "text-gray-400"}`}
           onClick={() => handleTabClick("abonnements")}
         >
@@ -36,7 +36,7 @@ function Home() {
           {activeTab === "abonnements" && (
             <span className="absolute right-0 w-1/2 bottom-0 h-[3px] bg-[#1DA1F2] transition"></span>
           )}
-        </button> */}
+        </button>
       </nav>
 
       {/* Liste des tweets */}

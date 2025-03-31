@@ -1,3 +1,4 @@
+// src/ui/tweet.tsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
@@ -9,7 +10,7 @@ type TweetProps = {
   initialLikeCount: number;
   initialLiked: boolean;
   isOwner: boolean;
-  media?: string[]; // Ajout de la propriété pour les URLs des médias
+  media?: string[]; // URLs des médias associés
   onDelete?: () => void;
 };
 
@@ -20,12 +21,16 @@ const Tweet: React.FC<TweetProps> = ({
   profilePicture,
   initialLikeCount,
   initialLiked,
-  media,
+  media = [],
   isOwner,
   onDelete,
 }) => {
   const [liked, setLiked] = useState<boolean>(initialLiked);
   const [likeCount, setLikeCount] = useState<number>(initialLikeCount);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editContent, setEditContent] = useState<string>(content);
+  const [editMedia, setEditMedia] = useState<string[]>(media);
+  const [newMediaFiles, setNewMediaFiles] = useState<File[]>([]);
   const navigate = useNavigate();
 
   const toggleLike = async () => {
@@ -76,6 +81,84 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
+  // Fonction de sauvegarde de l'édition
+  const handleEditSave = async () => {
+    const token = localStorage.getItem("token");
+    let uploadedMediaUrls: string[] = [];
+
+    // Upload des nouveaux fichiers médias sélectionnés
+    for (const file of newMediaFiles) {
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const response = await fetch("http://localhost:8080/api/upload", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+          },
+          body: formData,
+        });
+        if (!response.ok) {
+          console.error("Erreur lors de l'upload d'un fichier");
+          continue;
+        }
+        const data = await response.json();
+        uploadedMediaUrls.push(data.url);
+      } catch (error) {
+        console.error("Erreur lors de l'upload :", error);
+      }
+    }
+    // Combine les médias existants (après suppression éventuelle) avec les nouveaux uploadés
+    const updatedMedia = [...editMedia, ...uploadedMediaUrls];
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
+        },
+        body: JSON.stringify({
+          content: editContent,
+          media: updatedMedia,
+        }),
+      });
+      if (!response.ok) {
+        console.error("Erreur lors de la mise à jour du tweet");
+        return;
+      }
+      const data = await response.json();
+      // Met à jour l'affichage avec le nouveau contenu et médias
+      setEditMedia(data.media);
+      setIsEditing(false);
+      // Vous pouvez également mettre à jour le texte affiché si besoin
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour :", error);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditContent(content);
+    setEditMedia(media);
+    setNewMediaFiles([]);
+    setIsEditing(false);
+  };
+
+  const handleNewMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setNewMediaFiles((prev) => [...prev, ...files]);
+    }
+  };
+
+  const removeExistingMedia = (url: string) => {
+    setEditMedia((prev) => prev.filter((mediaUrl) => mediaUrl !== url));
+  };
+
+  const removeNewMedia = (file: File) => {
+    setNewMediaFiles((prev) => prev.filter((f) => f !== file));
+  };
+
   return (
     <article className="flex items-start gap-3 py-3 border-b border-gray-600">
       <Link to={`/profile/${author}`}>
@@ -85,29 +168,115 @@ const Tweet: React.FC<TweetProps> = ({
         <Link to={`/profile/${author}`}>
           <p className="text-white font-semibold">{author}</p>
         </Link>
-        <p className="text-gray-300">{content}</p>
 
-        {/* Affichage des médias associés, s'il y en a */}
-        {media && media.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {media.map((url, index) =>
-              url.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                <img
-                  key={index}
-                  src={url}
-                  alt={`media-${index}`}
-                  className="max-h-60 object-cover"
-                />
-              ) : (
-                <video
-                  key={index}
-                  src={url}
-                  controls
-                  className="max-h-60 object-cover"
-                />
-              )
+        {!isEditing ? (
+          <>
+            <p className="text-gray-300">{content}</p>
+            {/* Affichage des médias associés */}
+            {media && media.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {media.map((url, index) =>
+                  url.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                    <img
+                      key={index}
+                      src={url}
+                      alt={`media-${index}`}
+                      className="max-h-60 object-cover"
+                    />
+                  ) : (
+                    <video
+                      key={index}
+                      src={url}
+                      controls
+                      className="max-h-60 object-cover"
+                    />
+                  )
+                )}
+              </div>
             )}
-          </div>
+          </>
+        ) : (
+          <>
+            <textarea
+              className="w-full bg-transparent text-white outline-none resize-none placeholder-gray-400"
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+            />
+            {/* Affichage des médias existants avec bouton de suppression */}
+            {editMedia && editMedia.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {editMedia.map((url, index) =>
+                  url.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                    <div key={index} className="relative">
+                      <img src={url} alt={`media-${index}`} className="max-h-60 object-cover" />
+                      <button
+                        className="absolute top-0 right-0 bg-red-500 text-white px-1"
+                        onClick={() => removeExistingMedia(url)}
+                      >
+                        X
+                      </button>
+                    </div>
+                  ) : (
+                    <div key={index} className="relative">
+                      <video src={url} controls className="max-h-60 object-cover" />
+                      <button
+                        className="absolute top-0 right-0 bg-red-500 text-white px-1"
+                        onClick={() => removeExistingMedia(url)}
+                      >
+                        X
+                      </button>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+            {/* Prévisualisation des nouveaux médias sélectionnés */}
+            {newMediaFiles && newMediaFiles.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {newMediaFiles.map((file, index) => {
+                  const preview = URL.createObjectURL(file);
+                  return (
+                    <div key={index} className="relative">
+                      {file.type.startsWith("image") ? (
+                        <img src={preview} alt={`new-media-${index}`} className="max-h-60 object-cover" />
+                      ) : (
+                        <video src={preview} controls className="max-h-60 object-cover" />
+                      )}
+                      <button
+                        className="absolute top-0 right-0 bg-red-500 text-white px-1"
+                        onClick={() => removeNewMedia(file)}
+                      >
+                        X
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* Input pour ajouter de nouveaux médias */}
+            <div className="mt-2">
+              <label htmlFor={`new-media-${tweetId}`} className="cursor-pointer bg-gray-700 p-2 rounded">
+                Ajouter des fichiers
+              </label>
+              <input
+                id={`new-media-${tweetId}`}
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                onChange={handleNewMediaChange}
+                className="hidden"
+              />
+            </div>
+            {/* Boutons de sauvegarde et d'annulation */}
+            <div className="mt-2 flex gap-2">
+              <button onClick={handleEditSave} className="px-3 py-1 bg-green-500 text-white rounded">
+                Sauvegarder
+              </button>
+              <button onClick={handleCancelEdit} className="px-3 py-1 bg-gray-500 text-white rounded">
+                Annuler
+              </button>
+            </div>
+          </>
         )}
 
         <div className="flex items-center gap-4 mt-2">
@@ -154,6 +323,14 @@ const Tweet: React.FC<TweetProps> = ({
             )}
             <span className="text-white">{likeCount}</span>
           </div>
+          {isOwner && !isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+            >
+              Modifier
+            </button>
+          )}
           {isOwner && (
             <button
               onClick={handleDelete}

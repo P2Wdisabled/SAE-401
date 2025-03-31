@@ -1,4 +1,5 @@
 <?php
+// src/Repository/PostRepository.php
 
 namespace App\Repository;
 
@@ -14,8 +15,6 @@ class PostRepository extends ServiceEntityRepository
         parent::__construct($registry, Post::class);
     }
 
-    
-
     public function paginateAllOrderedByLatest(int $offset, int $count): Paginator
     {
         $query = $this->createQueryBuilder('p')
@@ -25,8 +24,22 @@ class PostRepository extends ServiceEntityRepository
             ->setFirstResult($offset)
             ->setMaxResults($count)
             ->getQuery();
-    
+
         return new Paginator($query);
     }
-    
+
+    public function paginatePostsByUsers(array $userIds, int $offset, int $count): Paginator
+    {
+        $query = $this->createQueryBuilder('p')
+            ->select('p', 'u')
+            ->innerJoin('p.user', 'u')
+            ->where('p.user IN (:userIds)')
+            ->setParameter('userIds', $userIds)
+            ->orderBy('p.createdAt', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($count)
+            ->getQuery();
+
+        return new Paginator($query);
+    }
 }
