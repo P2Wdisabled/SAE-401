@@ -76,6 +76,12 @@ private bool $private = false;
 #[ORM\JoinTable(name: 'user_blocked')]
 private Collection $blockedUsers;
 
+
+    
+#[ORM\ManyToOne(targetEntity: Post::class)]
+#[ORM\JoinColumn(nullable: true)]
+private ?Post $pinnedTweet = null;
+
     public function __construct()
     {
         $this->posts = new ArrayCollection();
@@ -83,6 +89,18 @@ private Collection $blockedUsers;
         $this->followers = new ArrayCollection();
         $this->blockedUsers = new ArrayCollection();
     }
+
+    
+    public function getPinnedTweet(): ?Post
+{
+    return $this->pinnedTweet;
+}
+
+public function setPinnedTweet(?Post $pinnedTweet): self
+{
+    $this->pinnedTweet = $pinnedTweet;
+    return $this;
+}
 
     
 public function getBlockedUsers(): Collection

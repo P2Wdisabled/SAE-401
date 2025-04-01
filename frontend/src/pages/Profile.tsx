@@ -7,6 +7,7 @@ import Button from "../ui/Button";
 const Profile: React.FC = () => {
   const { username } = useParams<{ username: string }>();
   const [profile, setProfile] = useState<any>(null);
+  const [pinnedTweet, setPinnedTweet] = useState<any>(null);
   const [tweets, setTweets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState<boolean>(false);
@@ -42,14 +43,14 @@ const Profile: React.FC = () => {
         setFollowError("");
         setBlockError("");
         setProfile(data.profile);
+        setPinnedTweet(data.pinnedTweet); // Récupération du tweet épinglé
         setTweets(data.tweets);
         setFollowing(data.profile.followed);
         setBlockState(data.profile.blockedUsers);
       })
       .catch((err) => {
         console.error(err);
-        // On peut choisir ici d'afficher une erreur globale si besoin,
-        // mais dans cet exemple, on n'affiche pas d'erreur globale.
+        // Ici, vous pouvez choisir d'afficher une erreur globale
       })
       .finally(() => {
         setLoading(false);
@@ -59,6 +60,53 @@ const Profile: React.FC = () => {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // Fonction pour épingler un tweet
+  const handlePinTweet = async (tweetId: number) => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`http://localhost:8080/api/profile/${username}/pin/${tweetId}`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data.error || "Erreur lors de l'épinglage du tweet");
+      } else {
+        // Mettre à jour le tweet épinglé
+        setPinnedTweet({ id: tweetId, ...data }); // Ici, data contient au minimum 'pinnedTweet' (id)
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'épinglage du tweet", error);
+      alert("Erreur lors de l'épinglage du tweet");
+    }
+  };
+
+  // Fonction pour désépingler le tweet
+  const handleUnpinTweet = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`http://localhost:8080/api/profile/${username}/unpin`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data.error || "Erreur lors du désépinglage du tweet");
+      } else {
+        setPinnedTweet(null);
+      }
+    } catch (error) {
+      console.error("Erreur lors du désépinglage du tweet", error);
+      alert("Erreur lors du désépinglage du tweet");
+    }
+  };
 
   const toggleFollow = async () => {
     const token = localStorage.getItem("token");
@@ -141,12 +189,7 @@ const Profile: React.FC = () => {
         <div className="mt-2 flex space-x-4 text-gray-500">
           {profile.location && <span>{profile.location}</span>}
           {profile.website && (
-            <a
-              href={profile.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500"
-            >
+            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-blue-500">
               {profile.website}
             </a>
           )}
@@ -169,7 +212,7 @@ const Profile: React.FC = () => {
             </>
           ) : (
             <div className="flex flex-row gap-2">
-              <div className=" relative">
+              <div className="relative">
                 <Button
                   text={following ? "Ne plus suivre" : "Suivre"}
                   onClick={toggleFollow}
@@ -185,33 +228,64 @@ const Profile: React.FC = () => {
                   onClick={toggleBlock}
                   moreClasses="bg-red-500 text-white px-4 py-2 rounded"
                 />
-                {blockError && (
-                  <p className="text-red-500 text-sm mt-1">{blockError}</p>
-                )}
+                {blockError && <p className="text-red-500 text-sm mt-1">{blockError}</p>}
               </div>
             </div>
           )}
         </div>
       </div>
+      {/* Affichage du tweet épinglé s'il existe */}
+      {profile.editable && pinnedTweet && (
+        <div className="mt-4 px-4">
+          <h2 className="text-xl font-semibold text-white">Tweet épinglé</h2>
+          <div className="mb-4">
+            <Tweet
+              tweetId={pinnedTweet.id}
+              author={profile.username}
+              content={pinnedTweet.content}
+              profilePicture={profile.profilePicture || "default-profile.png"}
+              initialLikeCount={pinnedTweet.likeCount || 0}
+              initialLiked={pinnedTweet.liked || false}
+              media={pinnedTweet.media}
+              replies={[]} // Les réponses ne sont pas affichées pour le tweet épinglé
+              isOwner={profile.editable}
+              censored={pinnedTweet.censored}
+            />
+            <Button
+              text="Désépingler"
+              onClick={handleUnpinTweet}
+              moreClasses="bg-gray-600 text-white px-4 py-2 rounded mt-2"
+            />
+          </div>
+        </div>
+      )}
       <div className="mt-4 px-4">
         <h2 className="text-xl font-semibold mb-2 text-white">Tweets</h2>
         {tweets.length === 0 ? (
           <p className="text-white">Aucun tweet à afficher.</p>
         ) : (
           tweets.map((tweet, index) => (
-            <Tweet
-              key={tweet.id || index}
-              tweetId={tweet.id}
-              author={profile.username}
-              content={tweet.content}
-              profilePicture={profile.profilePicture || "default-profile.png"}
-              initialLikeCount={tweet.likeCount || 0}
-              initialLiked={tweet.liked || false}
-              media={tweet.media}
-              replies={tweet.replies}
-              isOwner={profile.editable}
-              onDelete={() => handleDeleteTweet(tweet.id)}
-            />
+            <div key={tweet.id || index}>
+              <Tweet
+                tweetId={tweet.id}
+                author={profile.username}
+                content={tweet.content}
+                profilePicture={profile.profilePicture || "default-profile.png"}
+                initialLikeCount={tweet.likeCount || 0}
+                initialLiked={tweet.liked || false}
+                media={tweet.media}
+                replies={tweet.replies}
+                isOwner={profile.editable}
+              />
+              {/* Si le profil est éditable, afficher le bouton pour épingler ce tweet */}
+              {profile.editable && (
+                <Button
+                  text="Épingler"
+                  onClick={() => handlePinTweet(tweet.id)}
+                  moreClasses="bg-green-500 text-white px-4 py-2 rounded mt-2"
+                />
+              )}
+            </div>
           ))
         )}
       </div>

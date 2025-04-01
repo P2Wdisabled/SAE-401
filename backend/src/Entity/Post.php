@@ -48,6 +48,7 @@ class Post
     #[ORM\OneToMany(mappedBy: 'post', targetEntity: PostLike::class, cascade: ["remove"])]
     private Collection $likes;
 
+
     
 #[ORM\Column(type: "boolean")]
 private bool $censored = false;
@@ -56,6 +57,7 @@ private bool $censored = false;
         $this->likes = new ArrayCollection();
         $this->replies = new ArrayCollection();
     }
+
 
     public function getId(): ?int
     {

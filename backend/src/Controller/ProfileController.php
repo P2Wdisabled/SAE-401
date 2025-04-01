@@ -6,6 +6,7 @@ namespace App\Controller;
 use App\Repository\UserRepository;
 use App\Repository\PostRepository;
 use App\Entity\User;
+use App\Entity\Post;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -37,12 +38,12 @@ class ProfileController extends AbstractController
         }
         
         $currentUserId = ($currentUser instanceof User) ? $currentUser->getId() : null;
-        $isBlocked = $user->getBlocked(); // bloqué par l'admin
+        $isBlocked = $user->getBlocked();
         $userBlocked = false;
         if ($currentUser instanceof User && !$isOwner) {
-            // Vérifier si l'utilisateur connecté a bloqué le profil cible
             $userBlocked = $currentUser->getBlockedUsers()->contains($user);
         }
+        
         $posts = $user->getPosts()->toArray();
         usort($posts, function ($a, $b) {
             return $a->getCreatedAt() <=> $b->getCreatedAt();
@@ -58,7 +59,6 @@ class ProfileController extends AbstractController
                     }
                 }
             }
-            // Construction des données du tweet (sans tenir compte ici de la censure ou autres réglages spécifiques)
             $media = $post->getMedia() ?: [];
             if ($isBlocked) {
                 $tweets[] = [
@@ -82,6 +82,22 @@ class ProfileController extends AbstractController
                 ];
             }
         }
+        
+        // Récupérer le tweet épinglé, s'il existe
+        $pinnedTweet = null;
+        if ($user->getPinnedTweet()) {
+            $pt = $user->getPinnedTweet();
+            $pinnedTweet = [
+                'id' => $pt->getId(),
+                'content' => $pt->getContent(),
+                'createdAt' => $pt->getCreatedAt()->format('c'),
+                'likeCount' => $pt->getLikesCount(),
+                'liked' => false, // Vous pouvez adapter cette valeur selon l'utilisateur courant
+                'media' => $pt->getMedia() ?: [],
+                'censored' => $pt->getCensored(),
+            ];
+        }
+        
         $profileData = [
             'username'       => $user->getUsername(),
             'bio'            => method_exists($user, 'getBio') ? $user->getBio() : '',
@@ -93,17 +109,17 @@ class ProfileController extends AbstractController
             'followed'       => $isFollowed,
             'blocked'        => $isBlocked,
             'blockedUsers'   => $userBlocked,
-            // Ajout des paramètres de confidentialité
             'readOnly'       => method_exists($user, 'getReadOnly') ? $user->getReadOnly() : false,
             'private'        => method_exists($user, 'getPrivate') ? $user->getPrivate() : false,
         ];
         return $this->json([
             'profile' => $profileData,
+            'pinnedTweet' => $pinnedTweet,
             'tweets'  => $tweets,
         ]);
     }
 
-    // Endpoint pour récupérer les informations du profil de l'utilisateur connecté pour édition
+    // Endpoint pour récupérer le profil de l'utilisateur connecté pour édition
     #[Route('/api/profile/edit', name: 'api_profile_get_edit', methods: ['GET'])]
     public function getProfileEdit(): JsonResponse
     {
@@ -165,15 +181,12 @@ class ProfileController extends AbstractController
         if (!$targetUser) {
             return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
         }
-        
-        // Vérifier si l'utilisateur cible a bloqué l'utilisateur courant
         if ($targetUser->getBlockedUsers()->contains($currentUser)) {
             return $this->json(
                 ['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a bloqué.'],
                 JsonResponse::HTTP_FORBIDDEN
             );
         }
-        
         $action = "";
         if ($currentUser->getFollowing()->contains($targetUser)) {
             $currentUser->unfollow($targetUser);
@@ -189,7 +202,7 @@ class ProfileController extends AbstractController
         ]);
     }
 
-    // Nouvelle route pour bloquer/débloquer un utilisateur
+    // Endpoint pour bloquer/débloquer un utilisateur
     #[Route('/api/profile/{username}/block', name: 'api_profile_toggle_block', methods: ['POST'])]
     public function toggleBlock(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
     {
@@ -228,18 +241,16 @@ class ProfileController extends AbstractController
         if (!$currentUser instanceof User) {
             return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
-
         $blockedUsers = $currentUser->getBlockedUsers()->map(function(User $user) {
             return [
                 'username' => $user->getUsername(),
                 'profilePicture' => $user->getProfilePicture(),
             ];
         })->toArray();
-
         return $this->json(['blockedUsers' => $blockedUsers]);
     }
 
-    // Nouveaux endpoints pour récupérer et mettre à jour les paramètres de l'utilisateur
+    // Endpoints pour récupérer et mettre à jour les paramètres de l'utilisateur
     #[Route('/api/profile/settings', name: 'api_profile_settings_get', methods: ['GET'])]
     public function getSettings(): JsonResponse
     {
@@ -271,5 +282,58 @@ class ProfileController extends AbstractController
         }
         $em->flush();
         return $this->json(['message' => 'Paramètres mis à jour avec succès.']);
+    }
+
+    // Nouveaux endpoints pour gérer l'épinglage des tweets
+    #[Route('/api/profile/{username}/pin/{tweetId}', name: 'api_profile_pin_tweet', methods: ['POST'])]
+    public function pinTweet(
+        string $username,
+        int $tweetId,
+        UserRepository $userRepository,
+        PostRepository $postRepository,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        // Seul le propriétaire du profil peut épingler un tweet
+        if ($currentUser->getUsername() !== $username) {
+            return $this->json(['error' => 'Accès non autorisé.'], JsonResponse::HTTP_FORBIDDEN);
+        }
+        $post = $postRepository->find($tweetId);
+        if (!$post) {
+            return $this->json(['error' => 'Tweet non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+        }
+        // Vérifier que le tweet appartient au profil courant
+        if ($post->getUser()->getId() !== $currentUser->getId()) {
+            return $this->json(['error' => 'Ce tweet ne vous appartient pas.'], JsonResponse::HTTP_FORBIDDEN);
+        }
+        $currentUser->setPinnedTweet($post);
+        $em->flush();
+        return $this->json([
+            'message' => 'Tweet épinglé avec succès.',
+            'pinnedTweet' => $post->getId(),
+        ]);
+    }
+
+    #[Route('/api/profile/{username}/unpin', name: 'api_profile_unpin_tweet', methods: ['POST'])]
+    public function unpinTweet(
+        string $username,
+        UserRepository $userRepository,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        if ($currentUser->getUsername() !== $username) {
+            return $this->json(['error' => 'Accès non autorisé.'], JsonResponse::HTTP_FORBIDDEN);
+        }
+        $currentUser->setPinnedTweet(null);
+        $em->flush();
+        return $this->json(['message' => 'Tweet désépinglé avec succès.']);
     }
 }
