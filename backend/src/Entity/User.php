@@ -65,6 +65,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\ManyToMany(targetEntity: self::class, mappedBy: 'following')]
     private Collection $followers;
 
+    #[ORM\Column(type: "boolean")]
+private bool $readOnly = false;
+
+#[ORM\Column(type: "boolean")]
+private bool $private = false;
+
     
 #[ORM\ManyToMany(targetEntity: self::class)]
 #[ORM\JoinTable(name: 'user_blocked')]
@@ -295,6 +301,24 @@ public function unblock(self $user): self
     public function setWebsite(?string $website): self
     {
         $this->website = $website;
+        return $this;
+    }
+
+    public function getReadOnly(): bool {
+        return $this->readOnly;
+    }
+    
+    public function setReadOnly(bool $readOnly): self {
+        $this->readOnly = $readOnly;
+        return $this;
+    }
+    
+    public function getPrivate(): bool {
+        return $this->private;
+    }
+    
+    public function setPrivate(bool $private): self {
+        $this->private = $private;
         return $this;
     }
 }

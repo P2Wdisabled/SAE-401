@@ -12,6 +12,7 @@ import Profile from "../pages/Profile";
 import EditProfile from "../pages/EditProfile";
 import BlockedProfile from "../pages/BlockedProfile";
 import CensorDashboard from "../pages/CensorDashboard";
+import Settings from "../pages/Settings";
 
 function AppRouter() {
   return (
@@ -20,6 +21,7 @@ function AppRouter() {
         <Header />
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/post" element={<Post />} />
           <Route path="/landing" element={<Landing />} />
           <Route path="/register" element={<Register />} />

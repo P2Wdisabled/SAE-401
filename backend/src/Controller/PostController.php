@@ -220,52 +220,61 @@ public function toggleLike(Post $post, EntityManagerInterface $em): JsonResponse
     }
 
     #[Route('/api/posts/{id}/reply', name: 'api_post_reply', methods: ['POST'])]
-    public function reply(Post $post, Request $request, ValidatorInterface $validator, EntityManagerInterface $em): JsonResponse
-    {
-        $user = $this->getUser();
-        /** @var \App\Entity\User $user */
-        if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
-        }
-        $postOwner = $post->getUser();
-        if ($postOwner && $postOwner->getBlockedUsers()->contains($user)) {
-            return $this->json(
-                ['error' => 'Vous ne pouvez pas interagir avec ce post car cet utilisateur vous a bloqué.'],
-                Response::HTTP_FORBIDDEN
-            );
-        }
-        // Vérification : un utilisateur bloqué ne peut pas répondre
-        if ($user->getBlocked()) {
-            return $this->json(['error' => 'Votre compte est bloqué et vous ne pouvez pas interagir avec les messages.'], Response::HTTP_FORBIDDEN);
-        }
-        
-        $data = json_decode($request->getContent(), true);
-        $content = $data['content'] ?? null;
-        $media = $data['media'] ?? [];
-
-        if (!$content || trim($content) === '') {
-            return $this->json(['error' => 'Le contenu de la réponse ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
-        }
-
-        $reply = new Post();
-        $reply->setContent($content);
-        $reply->setMedia($media);
-        $reply->setCreatedAt(new \DateTime());
-        $reply->setUser($user);
-        $reply->setParent($post);
-
-        $em->persist($reply);
-        $em->flush();
-
-        return $this->json([
-            'id'             => $reply->getId(),
-            'content'        => $reply->getContent(),
-            'media'          => $reply->getMedia() ?: [],
-            'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
-            'author'         => $user->getUsername(),
-            'profilePicture' => $user->getProfilePicture(),
-        ], Response::HTTP_CREATED);
+public function reply(Post $post, Request $request, ValidatorInterface $validator, EntityManagerInterface $em): JsonResponse
+{
+    /** @var \App\Entity\User $user */
+    $user = $this->getUser();
+    if (!$user) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
     }
+    $postOwner = $post->getUser();
+    // Si le propriétaire du post a bloqué l'utilisateur qui interagit, refuser
+    if ($postOwner && $postOwner->getBlockedUsers()->contains($user)) {
+        return $this->json(
+            ['error' => 'Vous ne pouvez pas interagir avec ce post car cet utilisateur vous a bloqué.'],
+            Response::HTTP_FORBIDDEN
+        );
+    }
+    // Vérifier si le propriétaire du post est en mode lecture seule
+    if ($postOwner && method_exists($postOwner, 'getReadOnly') && $postOwner->getReadOnly()) {
+        return $this->json(
+            ['error' => 'Ce compte est en mode lecture seule, vous ne pouvez pas commenter ou répondre.'],
+            Response::HTTP_FORBIDDEN
+        );
+    }
+    // Vérifier si l'utilisateur lui-même est bloqué
+    if ($user->getBlocked()) {
+        return $this->json(['error' => 'Votre compte est bloqué et vous ne pouvez pas interagir avec les messages.'], Response::HTTP_FORBIDDEN);
+    }
+    
+    $data = json_decode($request->getContent(), true);
+    $content = $data['content'] ?? null;
+    $media = $data['media'] ?? [];
+
+    if (!$content || trim($content) === '') {
+        return $this->json(['error' => 'Le contenu de la réponse ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+    }
+
+    $reply = new Post();
+    $reply->setContent($content);
+    $reply->setMedia($media);
+    $reply->setCreatedAt(new \DateTime());
+    $reply->setUser($user);
+    $reply->setParent($post);
+
+    $em->persist($reply);
+    $em->flush();
+
+    return $this->json([
+        'id'             => $reply->getId(),
+        'content'        => $reply->getContent(),
+        'media'          => $reply->getMedia() ?: [],
+        'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+        'author'         => $user->getUsername(),
+        'profilePicture' => $user->getProfilePicture(),
+    ], Response::HTTP_CREATED);
+}
+
 
     #[Route('/api/posts/{id}', name: 'api_post_update', methods: ['PUT'])]
 public function update(

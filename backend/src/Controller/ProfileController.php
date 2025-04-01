@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class ProfileController extends AbstractController
 {
-    // Endpoint pour afficher le profil complet (déjà en place)
+    // Endpoint pour afficher le profil complet
     #[Route('/profile/{username}', name: 'profile_show', methods: ['GET'])]
     public function show(
         string $username,
@@ -58,7 +58,7 @@ class ProfileController extends AbstractController
                     }
                 }
             }
-            // Ajout du champ 'media' dans le tableau de données du tweet
+            // Construction des données du tweet (sans tenir compte ici de la censure ou autres réglages spécifiques)
             $media = $post->getMedia() ?: [];
             if ($isBlocked) {
                 $tweets[] = [
@@ -93,6 +93,9 @@ class ProfileController extends AbstractController
             'followed'       => $isFollowed,
             'blocked'        => $isBlocked,
             'blockedUsers'   => $userBlocked,
+            // Ajout des paramètres de confidentialité
+            'readOnly'       => method_exists($user, 'getReadOnly') ? $user->getReadOnly() : false,
+            'private'        => method_exists($user, 'getPrivate') ? $user->getPrivate() : false,
         ];
         return $this->json([
             'profile' => $profileData,
@@ -151,41 +154,40 @@ class ProfileController extends AbstractController
 
     // Endpoint pour suivre/désabonner un utilisateur
     #[Route('/api/profile/{username}/follow', name: 'api_profile_toggle_follow', methods: ['POST'])]
-public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
-{
-    /** @var User|null $currentUser */
-    $currentUser = $this->getUser();
-    if (!$currentUser instanceof User) {
-        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $targetUser = $userRepository->findOneBy(['username' => $username]);
+        if (!$targetUser) {
+            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+        }
+        
+        // Vérifier si l'utilisateur cible a bloqué l'utilisateur courant
+        if ($targetUser->getBlockedUsers()->contains($currentUser)) {
+            return $this->json(
+                ['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a bloqué.'],
+                JsonResponse::HTTP_FORBIDDEN
+            );
+        }
+        
+        $action = "";
+        if ($currentUser->getFollowing()->contains($targetUser)) {
+            $currentUser->unfollow($targetUser);
+            $action = 'unfollowed';
+        } else {
+            $currentUser->follow($targetUser);
+            $action = 'followed';
+        }
+        $em->flush();
+        return $this->json([
+            'message' => 'Action effectuée: ' . $action,
+            'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
+        ]);
     }
-    $targetUser = $userRepository->findOneBy(['username' => $username]);
-    if (!$targetUser) {
-        return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
-    }
-    
-    // Vérifier si l'utilisateur cible a bloqué l'utilisateur courant
-    if ($targetUser->getBlockedUsers()->contains($currentUser)) {
-        return $this->json(
-            ['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a bloqué.'],
-            JsonResponse::HTTP_FORBIDDEN
-        );
-    }
-    
-    $action = "";
-    if ($currentUser->getFollowing()->contains($targetUser)) {
-        $currentUser->unfollow($targetUser);
-        $action = 'unfollowed';
-    } else {
-        $currentUser->follow($targetUser);
-        $action = 'followed';
-    }
-    $em->flush();
-    return $this->json([
-        'message' => 'Action effectuée: ' . $action,
-        'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
-    ]);
-}
-
 
     // Nouvelle route pour bloquer/débloquer un utilisateur
     #[Route('/api/profile/{username}/block', name: 'api_profile_toggle_block', methods: ['POST'])]
@@ -200,13 +202,11 @@ public function toggleFollow(string $username, UserRepository $userRepository, E
         if (!$targetUser) {
             return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
         }
-        // Ici, nous supposons que l'entité User possède une relation ManyToMany "blockedUsers"
         if ($currentUser->getBlockedUsers()->contains($targetUser)) {
             $currentUser->unblock($targetUser);
             $action = 'unblocked';
         } else {
             $currentUser->block($targetUser);
-            // Si l'utilisateur était suivi, le désabonner automatiquement
             if ($currentUser->getFollowing()->contains($targetUser)) {
                 $currentUser->unfollow($targetUser);
                 $targetUser->unfollow($currentUser);
@@ -221,24 +221,55 @@ public function toggleFollow(string $username, UserRepository $userRepository, E
     }
 
     #[Route('/api/profile/blocked', name: 'api_profile_blocked_list', methods: ['GET'])]
-public function blockedList(): JsonResponse
-{
-    /** @var User|null $currentUser */
-    $currentUser = $this->getUser();
-    if (!$currentUser instanceof User) {
-        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    public function blockedList(): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $blockedUsers = $currentUser->getBlockedUsers()->map(function(User $user) {
+            return [
+                'username' => $user->getUsername(),
+                'profilePicture' => $user->getProfilePicture(),
+            ];
+        })->toArray();
+
+        return $this->json(['blockedUsers' => $blockedUsers]);
     }
 
-    // Récupérer les utilisateurs bloqués par l'utilisateur connecté
-    $blockedUsers = $currentUser->getBlockedUsers()->map(function(User $user) {
-        return [
-            'username' => $user->getUsername(),
-            'profilePicture' => $user->getProfilePicture(),
-            // Ajoutez d'autres champs si besoin
-        ];
-    })->toArray();
+    // Nouveaux endpoints pour récupérer et mettre à jour les paramètres de l'utilisateur
+    #[Route('/api/profile/settings', name: 'api_profile_settings_get', methods: ['GET'])]
+    public function getSettings(): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        return $this->json([
+            'readOnly' => method_exists($currentUser, 'getReadOnly') ? $currentUser->getReadOnly() : false,
+            'private' => method_exists($currentUser, 'getPrivate') ? $currentUser->getPrivate() : false,
+        ]);
+    }
 
-    return $this->json(['blockedUsers' => $blockedUsers]);
-}
-
+    #[Route('/api/profile/settings', name: 'api_profile_settings_update', methods: ['PUT'])]
+    public function updateSettings(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $data = json_decode($request->getContent(), true);
+        if (isset($data['readOnly'])) {
+            $currentUser->setReadOnly((bool)$data['readOnly']);
+        }
+        if (isset($data['private'])) {
+            $currentUser->setPrivate((bool)$data['private']);
+        }
+        $em->flush();
+        return $this->json(['message' => 'Paramètres mis à jour avec succès.']);
+    }
 }

@@ -151,7 +151,7 @@ const Profile: React.FC = () => {
             </a>
           )}
         </div>
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-4 flex flex-row gap-2">
           {profile.editable ? (
             <>
               <Button
