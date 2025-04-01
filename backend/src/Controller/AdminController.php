@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Repository\PostRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -30,42 +31,41 @@ class AdminController extends AbstractController
     }
 
     #[Route('/users/Accounts', name: 'users.AccountList', methods: ['GET'], format: 'json')]
-public function index(Request $request, UserRepository $userRepository): Response
-{
-    if ($response = $this->ensureAdmin()) {
-        return $response;
+    public function index(Request $request, UserRepository $userRepository): Response
+    {
+        if ($response = $this->ensureAdmin()) {
+            return $response;
+        }
+        
+        $page = $request->query->getInt('page', 1);
+        $count = 50;
+        $offset = max(0, ($page - 1) * $count);
+
+        $paginator = $userRepository->paginateUsers($offset, $count);
+        $totalUsersCount = $paginator->count();
+        $previousPage = $page > 1 ? $page - 1 : null;
+        $nextPage = (($page * $count) < $totalUsersCount) ? $page + 1 : null;
+
+        $usersArray = [];
+        foreach ($paginator as $user) {
+            $usersArray[] = [
+                'id'       => $user->getId(),
+                'username' => $user->getUsername() ?? "Unnamed",
+                'email'    => $user->getEmail(),
+                'blocked'  => $user->getBlocked(), // Statut de blocage
+            ];
+        }
+
+        return $this->json([
+            'users'         => $usersArray,
+            'previous_page' => $previousPage,
+            'next_page'     => $nextPage,
+        ]);
     }
-    
-    $page = $request->query->getInt('page', 1);
-    $count = 50;
-    $offset = max(0, ($page - 1) * $count);
-
-    $paginator = $userRepository->paginateUsers($offset, $count);
-    $totalUsersCount = $paginator->count();
-    $previousPage = $page > 1 ? $page - 1 : null;
-    $nextPage = (($page * $count) < $totalUsersCount) ? $page + 1 : null;
-
-    $usersArray = [];
-    foreach ($paginator as $user) {
-        $usersArray[] = [
-            'id'       => $user->getId(),
-            'username' => $user->getUsername() ?? "Unnamed",
-            'email'    => $user->getEmail(),
-            'blocked'  => $user->getBlocked(), // Statut de blocage
-        ];
-    }
-
-    return $this->json([
-        'users'         => $usersArray,
-        'previous_page' => $previousPage,
-        'next_page'     => $nextPage,
-    ]);
-}
 
     #[Route('/users/{id}', name: 'users.show', methods: ['GET'], format: 'json')]
     public function show(int $id, UserRepository $userRepository): Response
     {
-        // Vérification de l'authentification et des droits admin
         if ($response = $this->ensureAdmin()) {
             return $response;
         }
@@ -90,7 +90,6 @@ public function index(Request $request, UserRepository $userRepository): Respons
         EntityManagerInterface $em,
         UserPasswordHasherInterface $passwordHasher
     ): Response {
-        // Vérification de l'authentification et des droits admin
         if ($response = $this->ensureAdmin()) {
             return $response;
         }
@@ -108,7 +107,6 @@ public function index(Request $request, UserRepository $userRepository): Respons
         $user->setUsername($data['username']);
         $user->setEmail($data['email']);
 
-        // Optionnel : mettre à jour le mot de passe s'il est fourni
         if (isset($data['password']) && !empty($data['password'])) {
             $hashedPassword = $passwordHasher->hashPassword($user, $data['password']);
             $user->setPassword($hashedPassword);
@@ -127,45 +125,109 @@ public function index(Request $request, UserRepository $userRepository): Respons
     #[Route('/admin/verify', name: 'admin.verify', methods: ['GET'], format: 'json')]
     public function verify(): Response
     {
-        // Vérification de l'authentification et des droits admin
         if ($response = $this->ensureAdmin()) {
             return $response;
         }
         
         return $this->json(['admin' => true]);
     }
+    
     #[Route('/infos', name: 'admin.infos', methods: ['GET'])]
-public function infos(): Response
-{
-    ob_start();
-    phpinfo();
-    $content = ob_get_clean();
+    public function infos(): Response
+    {
+        ob_start();
+        phpinfo();
+        $content = ob_get_clean();
 
-    return new Response($content, 200, ['Content-Type' => 'text/html']);
-}
-
-
+        return new Response($content, 200, ['Content-Type' => 'text/html']);
+    }
 
     #[Route('/admin/users/{id}/toggle-block', name: 'admin_toggle_block', methods: ['POST'], format: 'json')]
-public function toggleBlock(int $id, UserRepository $userRepository, EntityManagerInterface $em): Response
-{
-    if ($response = $this->ensureAdmin()) {
-        return $response;
+    public function toggleBlock(int $id, UserRepository $userRepository, EntityManagerInterface $em): Response
+    {
+        if ($response = $this->ensureAdmin()) {
+            return $response;
+        }
+        
+        $user = $userRepository->find($id);
+        if (!$user) {
+            return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
+        }
+        
+        // Inverse l'état de blocage
+        $user->setBlocked(!$user->getBlocked());
+        $em->flush();
+        
+        return $this->json([
+            'id'      => $user->getId(),
+            'blocked' => $user->getBlocked(),
+            'message' => $user->getBlocked() ? "Compte bloqué pour non respect des conditions d'utilisation." : "Compte débloqué."
+        ]);
     }
-    
-    $user = $userRepository->find($id);
-    if (!$user) {
-        return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
+
+    #[Route('/admin/posts/{id}/toggle-censor', name: 'admin_toggle_censor', methods: ['POST'], format: 'json')]
+    public function toggleCensor(
+        int $id,
+        PostRepository $postRepository,
+        EntityManagerInterface $em
+    ): Response {
+        // Vérification des droits admin
+        $currentUser = $this->getUser();
+        if (!$currentUser || !in_array('ROLE_ADMIN', $currentUser->getRoles())) {
+            return $this->json(['error' => 'Access denied'], Response::HTTP_FORBIDDEN);
+        }
+        
+        $post = $postRepository->find($id);
+        if (!$post) {
+            return $this->json(['error' => 'Post not found'], Response::HTTP_NOT_FOUND);
+        }
+        
+        // Basculer l'état censuré
+        $post->setCensored(!$post->getCensored());
+        $em->flush();
+        
+        return $this->json([
+            'id' => $post->getId(),
+            'censored' => $post->getCensored(),
+            'message' => $post->getCensored() ? "Contenu censuré." : "Contenu débloqué."
+        ]);
     }
-    
-    // Inverse l'état de blocage
-    $user->setBlocked(!$user->getBlocked());
-    $em->flush();
-    
-    return $this->json([
-        'id'      => $user->getId(),
-        'blocked' => $user->getBlocked(),
-        'message' => $user->getBlocked() ? "Compte bloqué pour non respect des conditions d'utilisation." : "Compte débloqué."
-    ]);
-}
+
+    // Nouvelle route pour récupérer les posts à modérer par l'admin (pour le dashboard de censure)
+    #[Route('/admin/posts', name: 'admin_posts', methods: ['GET'], format: 'json')]
+    public function getPosts(Request $request, PostRepository $postRepository): Response
+    {
+        if ($response = $this->ensureAdmin()) {
+            return $response;
+        }
+        
+        $search = $request->query->get('search', '');
+        
+        // Récupérer tous les posts. Pour une version de production, pensez à paginer et optimiser la requête.
+        $posts = $postRepository->findAll();
+
+        // Filtrer par recherche si besoin
+        if ($search) {
+            $posts = array_filter($posts, function($post) use ($search) {
+                return stripos($post->getContent(), $search) !== false;
+            });
+        }
+
+        $postsArray = array_map(function($post) {
+            return [
+                'id'        => $post->getId(),
+                'username'  => $post->getUser() ? $post->getUser()->getUsername() : 'Unknown',
+                'content'   => $post->getContent(),
+                'censored'  => $post->getCensored(),
+                'likeCount' => $post->getLikesCount(), // Méthode à implémenter dans l'entité ou repository
+                'media'     => $post->getMedia(),       // Assurez-vous que cette méthode existe
+                'replies'   => $post->getReplies(),     // idem
+                'retweets'  => method_exists($post, 'getRetweetsCount') ? $post->getRetweetsCount() : 0,
+            ];
+        }, $posts);
+
+        return $this->json([
+            'posts' => array_values($postsArray)
+        ]);
+    }
 }

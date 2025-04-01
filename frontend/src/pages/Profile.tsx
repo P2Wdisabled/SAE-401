@@ -1,3 +1,4 @@
+// src/components/Profile.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Tweet from "../ui/tweet";
@@ -10,6 +11,9 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState<boolean>(false);
   const [BlockState, setBlockState] = useState<boolean>(false);
+  const [followError, setFollowError] = useState<string>("");
+  const [blockError, setBlockError] = useState<string>("");
+
   const navigate = useNavigate();
 
   const fetchProfile = useCallback(() => {
@@ -18,6 +22,7 @@ const Profile: React.FC = () => {
       navigate("/landing");
       return;
     }
+    setLoading(true);
     fetch(`http://localhost:8080/profile/${username}`, {
       method: "GET",
       headers: {
@@ -25,22 +30,26 @@ const Profile: React.FC = () => {
         "Authorization": "Bearer " + token,
       },
     })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Erreur lors du chargement du profil");
-        }
-        return res.json();
-      })
+      .then((res) =>
+        res.json().then((data) => {
+          if (!res.ok) {
+            throw new Error(data.error || "Erreur lors du chargement du profil");
+          }
+          return data;
+        })
+      )
       .then((data) => {
+        setFollowError("");
+        setBlockError("");
         setProfile(data.profile);
         setTweets(data.tweets);
         setFollowing(data.profile.followed);
-        // Vérifier si le profil courant est dans la liste
         setBlockState(data.profile.blockedUsers);
-        // data.profile.blocked correspond au blocage admin, on ne met pas à jour userBlocked ici
       })
       .catch((err) => {
         console.error(err);
+        // On peut choisir ici d'afficher une erreur globale si besoin,
+        // mais dans cet exemple, on n'affiche pas d'erreur globale.
       })
       .finally(() => {
         setLoading(false);
@@ -50,7 +59,6 @@ const Profile: React.FC = () => {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
-
 
   const toggleFollow = async () => {
     const token = localStorage.getItem("token");
@@ -63,13 +71,15 @@ const Profile: React.FC = () => {
         },
       });
       const data = await response.json();
-      if (data.error) {
-        console.error(data.error);
+      if (!response.ok) {
+        setFollowError(data.error || "Erreur lors du follow/unfollow");
       } else {
         setFollowing(!following);
+        setFollowError("");
       }
     } catch (error) {
       console.error("Erreur lors du follow/unfollow", error);
+      setFollowError("Erreur lors du follow/unfollow");
     }
   };
 
@@ -84,13 +94,18 @@ const Profile: React.FC = () => {
         },
       });
       const data = await response.json();
-      // Vérifier si le profil courant est dans la liste
-      setBlockState(!BlockState);
-      if (BlockState && following) {
-        setFollowing(false);
+      if (!response.ok) {
+        setBlockError(data.error || "Erreur lors du blocage/déblocage");
+      } else {
+        setBlockState(!BlockState);
+        if (BlockState && following) {
+          setFollowing(false);
+        }
+        setBlockError("");
       }
     } catch (error) {
       console.error("Erreur lors du blocage/déblocage", error);
+      setBlockError("Erreur lors du blocage/déblocage");
     }
   };
 
@@ -136,7 +151,7 @@ const Profile: React.FC = () => {
             </a>
           )}
         </div>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-col gap-2">
           {profile.editable ? (
             <>
               <Button
@@ -153,19 +168,28 @@ const Profile: React.FC = () => {
               />
             </>
           ) : (
-            <>
-              <Button
-                text={following ? "Ne plus suivre" : "Suivre"}
-                onClick={toggleFollow}
-                moreClasses="bg-blue-500 text-white px-4 py-2 rounded"
-              />
-              {/* N'afficher le bouton de blocage que si le compte n'est pas bloqué par l'admin */}
+            <div className="flex flex-row gap-2">
+              <div className=" relative">
                 <Button
-                  text={BlockState  ? "Débloquer" : "Bloquer"}
+                  text={following ? "Ne plus suivre" : "Suivre"}
+                  onClick={toggleFollow}
+                  moreClasses="bg-blue-500 text-white px-4 py-2 rounded"
+                />
+                {followError && (
+                  <p className="text-red-500 text-sm mt-1 absolute w-96">{followError}</p>
+                )}
+              </div>
+              <div>
+                <Button
+                  text={BlockState ? "Débloquer" : "Bloquer"}
                   onClick={toggleBlock}
                   moreClasses="bg-red-500 text-white px-4 py-2 rounded"
                 />
-            </>
+                {blockError && (
+                  <p className="text-red-500 text-sm mt-1">{blockError}</p>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>

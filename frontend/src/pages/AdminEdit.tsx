@@ -5,10 +5,10 @@ import { useCheckToken } from "../components/Checker";
 import Button from "../ui/Button";
 import FormInput from "../ui/FormInput";
 
-function EditAccount() {
+function AdminEdit() {
   useCheckToken();
 
-  const { id } = useParams<{ id: string }>(); // id est une chaîne de caractères
+  const { id } = useParams<{ id: string }>(); // L'ID est une chaîne de caractères
 
   // États pour stocker les informations de l'utilisateur et le statut de la requête
   const [username, setUsername] = useState("");
@@ -84,18 +84,16 @@ function EditAccount() {
       {error && <p className="text-red-500 mb-4">{error}</p>}
       {success && <p className="text-green-500 mb-4">{success}</p>}
       <FormInput
-        label={username}
+        label="Nom d'utilisateur"
         type="text"
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-          setUsername(e.target.value)
-        }
+        value={username}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
       />
       <FormInput
-        label={email}
+        label="Email"
         type="email"
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-          setEmail(e.target.value)
-        }
+        value={email}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
       />
       <Button text="Confirmer les modifications" onClick={handleSubmit} />
       {loading && <p className="text-white mt-4">Mise à jour en cours...</p>}
@@ -103,4 +101,4 @@ function EditAccount() {
   );
 }
 
-export default EditAccount;
+export default AdminEdit;

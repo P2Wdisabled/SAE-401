@@ -151,30 +151,41 @@ class ProfileController extends AbstractController
 
     // Endpoint pour suivre/désabonner un utilisateur
     #[Route('/api/profile/{username}/follow', name: 'api_profile_toggle_follow', methods: ['POST'])]
-    public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
-    {
-        /** @var User|null $currentUser */
-        $currentUser = $this->getUser();
-        if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
-        }
-        $targetUser = $userRepository->findOneBy(['username' => $username]);
-        if (!$targetUser) {
-            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
-        }
-        if ($currentUser->getFollowing()->contains($targetUser)) {
-            $currentUser->unfollow($targetUser);
-            $action = 'unfollowed';
-        } else {
-            $currentUser->follow($targetUser);
-            $action = 'followed';
-        }
-        $em->flush();
-        return $this->json([
-            'message' => 'Action effectuée: ' . $action,
-            'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
-        ]);
+public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+{
+    /** @var User|null $currentUser */
+    $currentUser = $this->getUser();
+    if (!$currentUser instanceof User) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
     }
+    $targetUser = $userRepository->findOneBy(['username' => $username]);
+    if (!$targetUser) {
+        return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+    }
+    
+    // Vérifier si l'utilisateur cible a bloqué l'utilisateur courant
+    if ($targetUser->getBlockedUsers()->contains($currentUser)) {
+        return $this->json(
+            ['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a bloqué.'],
+            JsonResponse::HTTP_FORBIDDEN
+        );
+    }
+    
+    $action = "";
+    if ($currentUser->getFollowing()->contains($targetUser)) {
+        $currentUser->unfollow($targetUser);
+        $action = 'unfollowed';
+    } else {
+        $currentUser->follow($targetUser);
+        $action = 'followed';
+    }
+    $em->flush();
+    return $this->json([
+        'message' => 'Action effectuée: ' . $action,
+        'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
+    ]);
+}
+
 
     // Nouvelle route pour bloquer/débloquer un utilisateur
     #[Route('/api/profile/{username}/block', name: 'api_profile_toggle_block', methods: ['POST'])]
@@ -198,6 +209,7 @@ class ProfileController extends AbstractController
             // Si l'utilisateur était suivi, le désabonner automatiquement
             if ($currentUser->getFollowing()->contains($targetUser)) {
                 $currentUser->unfollow($targetUser);
+                $targetUser->unfollow($currentUser);
             }
             $action = 'blocked';
         }

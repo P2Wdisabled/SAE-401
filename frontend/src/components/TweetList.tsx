@@ -46,18 +46,21 @@ function TweetList({ activeTab }: TweetListProps) {
         "Authorization": "Bearer " + token,
       },
     })
-      .then((response) => {
-        if (!response.ok) {
-          if (response.status === 401) {
-            navigate("/landing");
-          } else if (response.status === 403) {
-            navigate("/");
+      .then((response) =>
+        response.json().then((data) => {
+          if (!response.ok) {
+            if (response.status === 401) {
+              navigate("/landing");
+            } else if (response.status === 403) {
+              navigate("/");
+            }
+            throw new Error(data.error || "Erreur lors de la récupération des posts");
           }
-          throw new Error("Erreur lors de la récupération des posts");
-        }
-        return response.json();
-      })
+          return data;
+        })
+      )
       .then((data) => {
+        setError(""); // réinitialiser l'erreur si tout est OK
         const newPosts = data.posts;
         if (pageNum === 0) {
           setPosts(newPosts);
@@ -70,7 +73,7 @@ function TweetList({ activeTab }: TweetListProps) {
       })
       .catch((err) => {
         console.error(err);
-        setError("Erreur lors du chargement des posts.");
+        setError(err.message || "Erreur lors du chargement des posts.");
       })
       .finally(() => {
         setLoading(false);
@@ -99,15 +102,18 @@ function TweetList({ activeTab }: TweetListProps) {
         "Authorization": "Bearer " + token,
       },
     })
-      .then((response) => {
-        if (!response.ok) {
-          if (response.status === 401) navigate("/landing");
-          else if (response.status === 403) navigate("/");
-          throw new Error("Erreur lors de la récupération des posts");
-        }
-        return response.json();
-      })
+      .then((response) =>
+        response.json().then((data) => {
+          if (!response.ok) {
+            if (response.status === 401) navigate("/landing");
+            else if (response.status === 403) navigate("/");
+            throw new Error(data.error || "Erreur lors de la récupération des posts");
+          }
+          return data;
+        })
+      )
       .then((data) => {
+        setError("");
         const newPosts = data.posts;
         setPosts(newPosts);
         if (newPosts.length < 50) {
@@ -116,7 +122,7 @@ function TweetList({ activeTab }: TweetListProps) {
       })
       .catch((err) => {
         console.error(err);
-        setError("Erreur lors du rafraîchissement des posts.");
+        setError(err.message || "Erreur lors du rafraîchissement des posts.");
       })
       .finally(() => {
         const elapsed = Date.now() - startTime;

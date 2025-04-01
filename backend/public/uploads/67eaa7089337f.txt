@@ -1,0 +1,19 @@
+Biomes
+1. les biomes doivent refléter un maximum la réalité pour n'import quel biom donc pareil pour le type de sole, eau, terrain etc... le tout en fonction des différents éléments présents dans le jeux
+2. les biomes contiennent les animaux réspéctifs a chaque biome réels pour apparaitres. une cetraine quantitée d'animaux sera présents dans le biome par défaut mais il n'y en a pas plus qui apparaitront (ça ne s'applique pas au montres)
+3. les minerais peuvent être trouvés dans n'import quel biome et influencer l'environnement du biome en fonction de son type, de même pour la végétation qui peut influencer l'état du biome
+4. effectivent en fonction du biome il y aura des catastrophes naturelles plus ou moins graves.
+5. on peut retrouver des villages dans n'importe quel biome (mais qui difèrent en fonction du biome), des temples dans les biomes les plus propices a leur présence et toujours proche des villages si il y en a un. les ruines peuvent être présentes n'importe ou, de même pour les grottes et peuvent provoqués un éffondration du sol si elles sont mal conçus. en fonction du biome les structures sont générés dans la forme la plus adaptée possible et le tout de manière logique (par exemple un village n'aparaitra pas dans un volcan ou dans une grotte)
+
+
+Structures
+1. toutes les structures imaginables, villages, temples, pyramides, cimetières, forteresse, volcans, cratères, etc...
+2. pareil que dans la réalitée
+3. toutes les structures sont explorable sauf celles comme le volcan. les villages et cimetières et autres types de structures du même genre sont sans danger, les autres structures sont piégées et contienne des trésors (précieux ou non)
+4. je ne sais pas vraiment, surement ou les temps et éléments comme ça sont peut présents, les volcans très rare et les grand villages peut commun, les petit villages commun
+
+
+Éléments Additionnels
+1. on peut trouver de tout, minerais, plantes, potions, sorts, items etc...
+2. oui il y a la chaleur, le sol du biome, son contenu, la pression (plus particulièrement sous l'eau) etc... qui vont influer sur le gameplay
+3. il y aura certains types de monstres qui ne sont présent que dans certains biomes tandis qui d'autres peuvent apparaitre partout et sans réelle limite de quantitée.

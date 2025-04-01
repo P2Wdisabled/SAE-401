@@ -37,6 +37,8 @@ const Tweet: React.FC<TweetProps> = ({
   const [replyContent, setReplyContent] = useState<string>("");
   // Initialiser les réponses depuis la prop afin qu'elles soient affichées après rechargement
   const [localReplies, setLocalReplies] = useState<any[]>(replies);
+  // État pour afficher les messages d'erreur issus des requêtes
+  const [actionError, setActionError] = useState<string>("");
   const navigate = useNavigate();
 
   const toggleLike = async () => {
@@ -50,14 +52,17 @@ const Tweet: React.FC<TweetProps> = ({
         },
       });
       if (!response.ok) {
-        console.error("Erreur lors du toggle like");
+        const data = await response.json();
+        setActionError(data.error || "Erreur lors du toggle like");
         return;
       }
       const data = await response.json();
       setLiked(data.liked);
       setLikeCount(data.likeCount);
+      setActionError("");
     } catch (error) {
       console.error("Erreur lors du toggle like", error);
+      setActionError("Erreur lors du toggle like");
     }
   };
 
@@ -74,14 +79,17 @@ const Tweet: React.FC<TweetProps> = ({
         },
       });
       if (!response.ok) {
-        console.error("Erreur lors de la suppression du tweet");
+        const data = await response.json();
+        setActionError(data.error || "Erreur lors de la suppression du tweet");
         return;
       }
       if (onDelete) {
         onDelete();
       }
+      setActionError("");
     } catch (error) {
       console.error("Erreur lors de la suppression du tweet", error);
+      setActionError("Erreur lors de la suppression du tweet");
     }
   };
 
@@ -100,7 +108,8 @@ const Tweet: React.FC<TweetProps> = ({
           body: formData,
         });
         if (!response.ok) {
-          console.error("Erreur lors de l'upload d'un fichier");
+          const data = await response.json();
+          console.error("Erreur lors de l'upload d'un fichier:", data.error);
           continue;
         }
         const data = await response.json();
@@ -123,14 +132,18 @@ const Tweet: React.FC<TweetProps> = ({
         }),
       });
       if (!response.ok) {
-        console.error("Erreur lors de la mise à jour du tweet");
+        const data = await response.json();
+        setActionError(data.error || "Erreur lors de la mise à jour du tweet");
         return;
       }
       const data = await response.json();
-      setEditMedia(data.media);
+      // On met à jour l'affichage avec les données retournées
+      setEditMedia(data.post.media);
       setIsEditing(false);
+      setActionError("");
     } catch (error) {
       console.error("Erreur lors de la mise à jour :", error);
+      setActionError("Erreur lors de la mise à jour du tweet");
     }
   };
 
@@ -139,6 +152,7 @@ const Tweet: React.FC<TweetProps> = ({
     setEditMedia(media);
     setNewMediaFiles([]);
     setIsEditing(false);
+    setActionError("");
   };
 
   const handleNewMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,15 +186,18 @@ const Tweet: React.FC<TweetProps> = ({
         }),
       });
       if (!response.ok) {
-        console.error("Erreur lors de l'envoi de la réponse");
+        const data = await response.json();
+        setActionError(data.error || "Erreur lors de l'envoi de la réponse");
         return;
       }
       const data = await response.json();
       setLocalReplies((prev) => [...prev, data]);
       setReplyContent("");
       setShowReplyForm(false);
+      setActionError("");
     } catch (error) {
       console.error("Erreur lors de l'envoi de la réponse", error);
+      setActionError("Erreur lors de l'envoi de la réponse");
     }
   };
 
@@ -194,22 +211,7 @@ const Tweet: React.FC<TweetProps> = ({
           <Link to={`/profile/${author}`}>
             <p className="text-white font-semibold">{author}</p>
           </Link>
-          {!isEditing ? (
-            <>
-              <p className="text-gray-300">{content}</p>
-              {media && media.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {media.map((url, index) =>
-                    url.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                      <img key={index} src={url} alt={`media-${index}`} className="max-h-60 object-cover" />
-                    ) : (
-                      <video key={index} src={url} controls className="max-h-60 object-cover" />
-                    )
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
+          {isEditing ? (
             <>
               <textarea
                 className="w-full bg-transparent text-white outline-none resize-none placeholder-gray-400"
@@ -278,6 +280,35 @@ const Tweet: React.FC<TweetProps> = ({
                 </button>
               </div>
             </>
+          ) : (
+            <>
+              <p className="text-gray-300">{content}</p>
+              {media && media.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {media.map((url, index) =>
+                    url.match(/\.(jpeg|jpg|gif|png|svg|webp)$/i) ? (
+                      <img key={index} src={url} alt={`media-${index}`} className="max-h-60 object-cover" />
+                    ) : url.match(/\.(mp4|mov|avi|flv|mvw|webm|mkv)$/i) ? (
+                      <video key={index} src={url} controls className="max-h-60 object-cover" />
+                    ) : url.match(/\.(mp3|wav|flac|aiff|alac|aac|ogg|wma)$/i) ? (
+                      <audio key={index} controls className="max-h-60">
+                        <source src={url} type="audio/mpeg" />
+                      </audio>
+                    ) : (
+                      <a
+                        key={index}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 border rounded bg-gray-100 text-blue-600 hover:underline"
+                      >
+                        📄 Voir le fichier {url.split('/').pop()}
+                      </a>
+                    )
+                  )}
+                </div>
+              )}
+            </>
           )}
           <div className="flex items-center gap-4 mt-2">
             <div onClick={toggleLike} className="flex items-center gap-1 cursor-pointer">
@@ -317,7 +348,6 @@ const Tweet: React.FC<TweetProps> = ({
               💬
             </button>
           </div>
-          {/* Champ de réponse */}
           {showReplyForm && (
             <div className="mt-2">
               <textarea
@@ -336,6 +366,8 @@ const Tweet: React.FC<TweetProps> = ({
               </div>
             </div>
           )}
+          {/* Affichage des erreurs d'action */}
+          {actionError && <p className="text-red-500 mt-2">{actionError}</p>}
           {/* Affichage des réponses */}
           {localReplies.length > 0 && (
             <div className="mt-4 pl-8 border-l border-gray-600">

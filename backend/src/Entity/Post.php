@@ -48,6 +48,10 @@ class Post
     #[ORM\OneToMany(mappedBy: 'post', targetEntity: PostLike::class, cascade: ["remove"])]
     private Collection $likes;
 
+    
+#[ORM\Column(type: "boolean")]
+private bool $censored = false;
+
     public function __construct() {
         $this->likes = new ArrayCollection();
         $this->replies = new ArrayCollection();
@@ -152,4 +156,15 @@ class Post
     {
         return $this->likes->count();
     }
+
+    public function getCensored(): bool
+{
+    return $this->censored;
+}
+
+public function setCensored(bool $censored): self
+{
+    $this->censored = $censored;
+    return $this;
+}
 }

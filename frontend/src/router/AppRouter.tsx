@@ -11,6 +11,7 @@ import EditAccount from "../pages/AdminEdit";
 import Profile from "../pages/Profile";
 import EditProfile from "../pages/EditProfile";
 import BlockedProfile from "../pages/BlockedProfile";
+import CensorDashboard from "../pages/CensorDashboard";
 
 function AppRouter() {
   return (
@@ -27,6 +28,7 @@ function AppRouter() {
           <Route path="/profile/blocked" element={<BlockedProfile />} />
           <Route path="/profile/:username" element={<Profile />} />
           <Route path="/admin" element={<Dashboard />} />
+          <Route path="/admin/censor" element={<CensorDashboard />} />
           <Route path="/admin/edit/:id" element={<EditAccount />} />
           <Route path="*" element={<h2 className="text-white">Page non trouvée</h2>} />
         </Routes>
