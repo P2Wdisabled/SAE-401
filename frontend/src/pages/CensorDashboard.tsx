@@ -90,6 +90,33 @@ const CensorDashboard: React.FC = () => {
     }
   };
 
+  const deletePost = async (postId: number) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/landing");
+      return;
+    }
+    try {
+      const response = await fetch(`http://localhost:8080/admin/posts/${postId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data.error || "Erreur lors de la suppression du post");
+        return;
+      }
+      // Supprime le post de la liste en local
+      setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+    } catch (error) {
+      console.error(error);
+      alert("Erreur lors de la suppression du post");
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4">
       <h2 className="text-2xl text-white mb-4">Dashboard Admin - Gestion des contenus</h2>
@@ -111,11 +138,18 @@ const CensorDashboard: React.FC = () => {
             <div key={post.id} className="p-4 border rounded bg-gray-800 text-white">
               <div className="flex justify-between items-center">
                 <p className="font-bold">{post.username}</p>
-                <Button
-                  text={post.censored ? "Décensurer" : "Censurer"}
-                  onClick={() => toggleCensor(post.id)}
-                  moreClasses="bg-red-500 text-white px-3 py-1 rounded"
-                />
+                <div className="flex space-x-2">
+                  <Button
+                    text={post.censored ? "Décensurer" : "Censurer"}
+                    onClick={() => toggleCensor(post.id)}
+                    moreClasses="bg-red-500 text-white px-3 py-1 rounded"
+                  />
+                  <Button
+                    text="Supprimer"
+                    onClick={() => deletePost(post.id)}
+                    moreClasses="bg-gray-700 text-white px-3 py-1 rounded"
+                  />
+                </div>
               </div>
               <div className="mt-2">
                 {post.censored ? (

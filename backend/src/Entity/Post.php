@@ -65,10 +65,6 @@ private bool $censored = false;
     #[Groups(['post:read'])]
     private ?string $retweetComment = null;
 
-    #[ORM\ManyToOne(targetEntity: self::class)]
-    #[ORM\JoinColumn(name: "retweeted_from_id", referencedColumnName: "id", nullable: true)]
-    private ?self $retweetedFrom = null;
-
     public function __construct() {
         $this->likes = new ArrayCollection();
         $this->replies = new ArrayCollection();
@@ -110,17 +106,6 @@ private bool $censored = false;
     public function setRetweetComment(?string $retweetComment): self
     {
         $this->retweetComment = $retweetComment;
-        return $this;
-    }
-
-    public function getRetweetedFrom(): ?self
-    {
-        return $this->retweetedFrom;
-    }
-
-    public function setRetweetedFrom(?self $retweetedFrom): self
-    {
-        $this->retweetedFrom = $retweetedFrom;
         return $this;
     }
 

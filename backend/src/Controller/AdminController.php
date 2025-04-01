@@ -4,6 +4,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Entity\Post;
 use App\Repository\UserRepository;
 use App\Repository\PostRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -237,6 +238,56 @@ public function getPosts(Request $request, PostRepository $postRepository): Resp
     return $this->json([
         'posts' => array_values($postsArray)
     ]);
+}
+
+#[Route('/admin/posts/{id}', name: 'admin_delete_post', methods: ['DELETE'], format: 'json')]
+public function deletePost(
+    int $id,
+    PostRepository $postRepository,
+    EntityManagerInterface $em
+): Response {
+    // Vérifier que l'utilisateur est admin
+    $currentUser = $this->getUser();
+    if (!$currentUser || !in_array('ROLE_ADMIN', $currentUser->getRoles())) {
+        return $this->json(['error' => 'Access denied'], Response::HTTP_FORBIDDEN);
+    }
+    
+    $post = $postRepository->find($id);
+    if (!$post) {
+        return $this->json(['error' => 'Post not found'], Response::HTTP_NOT_FOUND);
+    }
+    
+    // Supprimer tous les likes associés au post
+    foreach ($post->getLikes() as $like) {
+        $em->remove($like);
+    }
+    
+    // Supprimer récursivement tous les commentaires (réponses) et leurs likes associés
+    $this->removeRepliesRecursively($post, $em);
+    
+    // Supprimer le post lui-même
+    $em->remove($post);
+    $em->flush();
+    
+    return $this->json(['message' => 'Post et ses likes/réponses ont été supprimés avec succès']);
+}
+
+/**
+ * Supprime récursivement tous les commentaires (réponses) d'un post,
+ * ainsi que les likes associés à chacun d'eux.
+ */
+private function removeRepliesRecursively(Post $post, EntityManagerInterface $em): void
+{
+    foreach ($post->getReplies() as $reply) {
+        // Supprimer les likes du commentaire
+        foreach ($reply->getLikes() as $like) {
+            $em->remove($like);
+        }
+        // Appel récursif pour supprimer les réponses imbriquées
+        $this->removeRepliesRecursively($reply, $em);
+        // Supprimer le commentaire lui-même
+        $em->remove($reply);
+    }
 }
 
 }

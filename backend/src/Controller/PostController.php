@@ -200,24 +200,52 @@ public function toggleLike(Post $post, EntityManagerInterface $em): JsonResponse
     }
     
     #[Route('/api/posts/{id}', name: 'api_post_delete', methods: ['DELETE'])]
-    public function delete(Post $post, EntityManagerInterface $em): JsonResponse
-    {
-        $user = $this->getUser();
-        if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
-        }
-        if (!$user instanceof \App\Entity\User) {
-            throw new \LogicException('L\'utilisateur doit être une instance de App\Entity\User.');
-        }
-        if ($post->getUser()->getId() !== $user->getId()) {
-            return $this->json(['error' => 'Vous n\'êtes pas autorisé à supprimer ce post.'], Response::HTTP_FORBIDDEN);
-        }
-
-        $em->remove($post);
-        $em->flush();
-
-        return $this->json(['message' => 'Post supprimé avec succès.'], Response::HTTP_OK);
+public function delete(Post $post, EntityManagerInterface $em): JsonResponse
+{
+    $user = $this->getUser();
+    if (!$user) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
     }
+    if (!$user instanceof \App\Entity\User) {
+        throw new \LogicException('L\'utilisateur doit être une instance de App\Entity\User.');
+    }
+    if ($post->getUser()->getId() !== $user->getId()) {
+        return $this->json(['error' => 'Vous n\'êtes pas autorisé à supprimer ce post.'], Response::HTTP_FORBIDDEN);
+    }
+
+    // Supprimer tous les likes associés au tweet
+    foreach ($post->getLikes() as $like) {
+        $em->remove($like);
+    }
+
+    // Supprimer récursivement tous les commentaires et leurs likes
+    $this->removeRepliesRecursively($post, $em);
+
+    // Supprimer le tweet lui-même
+    $em->remove($post);
+    $em->flush();
+
+    return $this->json(['message' => 'Post supprimé avec succès.'], Response::HTTP_OK);
+}
+
+/**
+ * Supprime récursivement tous les commentaires (réponses) d'un post,
+ * ainsi que les likes associés à chacun d'eux.
+ */
+private function removeRepliesRecursively(Post $post, EntityManagerInterface $em): void
+{
+    foreach ($post->getReplies() as $reply) {
+        // Supprimer les likes du commentaire
+        foreach ($reply->getLikes() as $like) {
+            $em->remove($like);
+        }
+        // Appel récursif pour supprimer les réponses éventuelles à ce commentaire
+        $this->removeRepliesRecursively($reply, $em);
+        // Supprimer le commentaire
+        $em->remove($reply);
+    }
+}
+
 
     #[Route('/api/posts/{id}/reply', name: 'api_post_reply', methods: ['POST'])]
 public function reply(Post $post, Request $request, ValidatorInterface $validator, EntityManagerInterface $em): JsonResponse
@@ -379,6 +407,8 @@ public function getHashtagPosts(string $tag, PostRepository $postRepository): Re
         'posts' => array_values($postsArray)
     ]);
 }
+
+
 #[Route('/api/posts/{id}/retweet', name: 'api_post_retweet', methods: ['POST'])]
 public function retweet(Post $post, Request $request, EntityManagerInterface $em): JsonResponse
 {
@@ -389,16 +419,17 @@ public function retweet(Post $post, Request $request, EntityManagerInterface $em
     }
 
     $data = json_decode($request->getContent(), true);
-    $comment = $data['comment'] ?? null; // commentaire optionnel pour retweet
+    $comment = $data['comment'] ?? null; // Commentaire optionnel pour le retweet
 
-    // Création du retweet : une copie du tweet original
+    // Création d'une copie réelle du tweet original
     $retweet = new Post();
-    $retweet->setContent($post->getContent());
-    $retweet->setMedia($post->getMedia());
-    $retweet->setCreatedAt(new \DateTime());
-    $retweet->setUser($user);
-    $retweet->setIsRetweet(true);
-    $retweet->setRetweetedFrom($post);
+    $retweet->setContent($post->getContent());       // Copie du contenu
+    $retweet->setMedia($post->getMedia());           // Copie des médias
+    $retweet->setCreatedAt(new \DateTime());         // Date de création du retweet
+    $retweet->setUser($user);                         // Le retweet est créé par l'utilisateur courant
+    $retweet->setIsRetweet(true);                     // Marqueur indiquant qu'il s'agit d'un retweet
+    // Vous pouvez copier d'autres propriétés essentielles du tweet original ici, si nécessaire
+
     $em->persist($retweet);
 
     // Incrémenter le compteur de retweets sur le tweet original
@@ -431,9 +462,10 @@ public function retweet(Post $post, Request $request, EntityManagerInterface $em
             'retweetCount' => $post->getRetweetCount(),
             'isRetweet' => $retweet->getIsRetweet(),
             'retweetedFrom' => $post->getId(),
-            'reply' => $retweetReply, // null si aucun commentaire n'est fourni
+            'reply' => $retweetReply, // Contient le commentaire si fourni
         ]
     ], Response::HTTP_CREATED);
 }
+
 
 }
