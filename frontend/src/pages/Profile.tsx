@@ -250,6 +250,7 @@ const Profile: React.FC = () => {
               content={pinnedTweet.content}
               profilePicture={profile.profilePicture || "default-profile.png"}
               initialLikeCount={pinnedTweet.likeCount || 0}
+              initialRetweetCount={pinnedTweet.retweetCount || 0}
               initialLiked={pinnedTweet.liked || false}
               media={pinnedTweet.media}
               replies={[]} 
@@ -278,6 +279,7 @@ const Profile: React.FC = () => {
                 profilePicture={profile.profilePicture || "default-profile.png"}
                 initialLikeCount={tweet.likeCount || 0}
                 initialLiked={tweet.liked || false}
+                initialRetweetCount={tweet.retweetCount || 0}
                 media={tweet.media}
                 replies={tweet.replies}
                 isOwner={profile.editable}

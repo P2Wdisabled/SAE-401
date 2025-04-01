@@ -80,6 +80,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
                     : $post->getContent(),
                 'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                 'likeCount'      => $post->getUser()->getBlocked() ? 0 : $post->getLikesCount(),
+                'retweetCount'   => $post->getRetweetCount(),  // Ajout du nombre de retweets
                 'liked'          => $post->getUser()->getBlocked() ? false : $liked,
                 'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
                 'media'          => $post->getMedia() ?: [],

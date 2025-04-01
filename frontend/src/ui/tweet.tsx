@@ -7,6 +7,7 @@ type TweetProps = {
   content: string;
   profilePicture: string;
   initialLikeCount: number;
+  initialRetweetCount: number;
   initialLiked: boolean;
   isOwner: boolean;
   censored?: boolean; // Indique si le tweet est censuré
@@ -47,6 +48,7 @@ const Tweet: React.FC<TweetProps> = ({
   content,
   profilePicture,
   initialLikeCount,
+  initialRetweetCount,
   initialLiked,
   censored = false,
   media = [],
@@ -56,6 +58,7 @@ const Tweet: React.FC<TweetProps> = ({
 }) => {
   const [liked, setLiked] = useState<boolean>(initialLiked);
   const [likeCount, setLikeCount] = useState<number>(initialLikeCount);
+  const [retweetCount, setRetweetCount] = useState<number>(initialRetweetCount);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editContent, setEditContent] = useState<string>(content);
   const [editMedia, setEditMedia] = useState<string[]>(media);
@@ -111,7 +114,11 @@ const Tweet: React.FC<TweetProps> = ({
         setActionError(data.error || "Erreur lors du retweet");
         return;
       }
-      await response.json();
+      const data = await response.json();
+      // Mettre à jour le compteur de retweets avec la valeur renvoyée par l'API
+      if (data.retweet && data.retweet.retweetCount !== undefined) {
+        setRetweetCount(data.retweet.retweetCount);
+      }
       alert("Retweet effectué avec succès !");
       setActionError("");
     } catch (error) {
@@ -380,17 +387,13 @@ const Tweet: React.FC<TweetProps> = ({
                 Supprimer
               </button>
             )}
-            {/* Bouton Retweet */}
-            <button
-              onClick={handleRetweet}
-              className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
-              title="Retweeter"
-            >
-              {/* Icône retweet (flèches circulaires) */}
+            {/* Bouton Retweet avec compteur */}
+            <div onClick={handleRetweet} className="flex items-center gap-1 cursor-pointer">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M23 7l-3-3v2H3v2h17v2l3-3zm-3 10H3v-2h17v-2l3 3-3 3v-2z" fill="currentColor"/>
               </svg>
-            </button>
+              <span className="text-white">{retweetCount}</span>
+            </div>
             {/* Bouton pour afficher/masquer la zone de réponse */}
             <button
               onClick={() => setShowReplyForm((prev) => !prev)}

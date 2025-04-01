@@ -83,6 +83,7 @@ class ProfileController extends AbstractController
                     'createdAt'      => $post->getCreatedAt()->format('c'),
                     'likeCount'      => 0,
                     'liked'          => false,
+                    'retweetCount'   => $post->getRetweetCount(),
                     'editable'       => $isOwner,
                     'media'          => $post->getMedia() ?: [],
                     'censored'       => false,
@@ -97,6 +98,7 @@ class ProfileController extends AbstractController
                     'likeCount'      => $post->getLikesCount(),
                     'liked'          => $liked,
                     'editable'       => $isOwner,
+                    'retweetCount'   => $post->getRetweetCount(),
                     'media'          => $post->getMedia() ?: [],
                     'censored'       => false,
                 ];
@@ -125,6 +127,7 @@ class ProfileController extends AbstractController
                 'content' => $pt->getContent(),
                 'createdAt' => $pt->getCreatedAt()->format('c'),
                 'likeCount' => $pt->getLikesCount(),
+                'retweetCount'   => $pt->getRetweetCount(),
                 'liked' => false,
                 'media' => $pt->getMedia() ?: [],
                 'censored' => $pt->getCensored(),
