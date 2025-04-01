@@ -1,5 +1,3 @@
-
-// src/ui/tweet.tsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
@@ -17,16 +15,13 @@ type TweetProps = {
   onDelete?: () => void;
 };
 
-// Fonction pour analyser et transformer le texte en incluant les hashtags et mentions cliquables
+// Fonction pour analyser et transformer le texte en incluant hashtags et mentions
 const parseContent = (text: string): React.ReactNode[] => {
-  // Regex pour détecter hashtags et mentions
   const regex = /(\B#[a-zA-Z0-9_]+)|(\B@[a-zA-Z0-9_]+)/g;
-  // Découper le texte en segments
   const parts = text.split(regex);
   return parts.map((part, index) => {
     if (!part) return null;
     if (part.startsWith("#")) {
-      // Hashtag : redirige vers /hashtag/{tag}
       const tag = part.substring(1);
       return (
         <Link key={index} to={`/hashtag/${tag}`} className="text-blue-400 hover:underline">
@@ -34,7 +29,6 @@ const parseContent = (text: string): React.ReactNode[] => {
         </Link>
       );
     } else if (part.startsWith("@")) {
-      // Mention : redirige vers /profile/{username}
       const username = part.substring(1);
       return (
         <Link key={index} to={`/profile/${username}`} className="text-blue-400 hover:underline">
@@ -98,8 +92,33 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
-
-  
+  // Fonction pour retweeter
+  const handleRetweet = async () => {
+    const token = localStorage.getItem("token");
+    // Optionnellement, demander un commentaire au retweet
+    const comment = window.prompt("Ajouter un commentaire (optionnel) pour retweeter :");
+    try {
+      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/retweet`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
+        },
+        body: JSON.stringify({ comment }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        setActionError(data.error || "Erreur lors du retweet");
+        return;
+      }
+      await response.json();
+      alert("Retweet effectué avec succès !");
+      setActionError("");
+    } catch (error) {
+      console.error("Erreur lors du retweet", error);
+      setActionError("Erreur lors du retweet");
+    }
+  };
 
   // Fonction pour supprimer le tweet
   const handleDelete = async () => {
@@ -254,11 +273,7 @@ const Tweet: React.FC<TweetProps> = ({
           </Link>
           {!isEditing ? (
             <>
-              {/* Si le tweet est censuré, le contenu s'affiche en italique */}
-              <p className={`text-gray-300 ${censored ? "italic" : ""}`}>
-                {parseContent(content)}
-              </p>
-              {/* N'afficher pas les médias si le post est censuré */}
+              <p className={`text-gray-300 ${censored ? "italic" : ""}`}>{parseContent(content)}</p>
               {!censored && media && media.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {media.map((url, index) =>
@@ -286,7 +301,6 @@ const Tweet: React.FC<TweetProps> = ({
               )}
             </>
           ) : (
-            // Bloc édition (inchangé)
             <>
               <textarea
                 className="w-full bg-transparent text-white outline-none resize-none placeholder-gray-400"
@@ -366,6 +380,18 @@ const Tweet: React.FC<TweetProps> = ({
                 Supprimer
               </button>
             )}
+            {/* Bouton Retweet */}
+            <button
+              onClick={handleRetweet}
+              className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
+              title="Retweeter"
+            >
+              {/* Icône retweet (flèches circulaires) */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M23 7l-3-3v2H3v2h17v2l3-3zm-3 10H3v-2h17v-2l3 3-3 3v-2z" fill="currentColor"/>
+              </svg>
+            </button>
+            {/* Bouton pour afficher/masquer la zone de réponse */}
             <button
               onClick={() => setShowReplyForm((prev) => !prev)}
               className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition"

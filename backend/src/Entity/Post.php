@@ -53,11 +53,76 @@ class Post
 #[ORM\Column(type: "boolean")]
 private bool $censored = false;
 
+#[ORM\Column(type: "integer")]
+    #[Groups(['post:read'])]
+    private int $retweetCount = 0;
+
+    #[ORM\Column(type: "boolean")]
+    #[Groups(['post:read'])]
+    private bool $isRetweet = false;
+
+    #[ORM\Column(type: "string", length: 280, nullable: true)]
+    #[Groups(['post:read'])]
+    private ?string $retweetComment = null;
+
+    #[ORM\ManyToOne(targetEntity: self::class)]
+    #[ORM\JoinColumn(name: "retweeted_from_id", referencedColumnName: "id", nullable: true)]
+    private ?self $retweetedFrom = null;
+
     public function __construct() {
         $this->likes = new ArrayCollection();
         $this->replies = new ArrayCollection();
     }
 
+    public function getRetweetCount(): int
+    {
+        return $this->retweetCount;
+    }
+
+    public function setRetweetCount(int $retweetCount): self
+    {
+        $this->retweetCount = $retweetCount;
+        return $this;
+    }
+
+    public function incrementRetweetCount(): self
+    {
+        $this->retweetCount++;
+        return $this;
+    }
+
+    public function getIsRetweet(): bool
+    {
+        return $this->isRetweet;
+    }
+
+    public function setIsRetweet(bool $isRetweet): self
+    {
+        $this->isRetweet = $isRetweet;
+        return $this;
+    }
+
+    public function getRetweetComment(): ?string
+    {
+        return $this->retweetComment;
+    }
+
+    public function setRetweetComment(?string $retweetComment): self
+    {
+        $this->retweetComment = $retweetComment;
+        return $this;
+    }
+
+    public function getRetweetedFrom(): ?self
+    {
+        return $this->retweetedFrom;
+    }
+
+    public function setRetweetedFrom(?self $retweetedFrom): self
+    {
+        $this->retweetedFrom = $retweetedFrom;
+        return $this;
+    }
 
     public function getId(): ?int
     {
