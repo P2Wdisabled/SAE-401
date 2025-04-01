@@ -18,13 +18,11 @@ function TweetList({ activeTab }: TweetListProps) {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const refreshInterval = 30; // secondes
 
-  // Réinitialiser posts, page et hasMore quand activeTab change
-  useEffect(() => {
-    setPosts([]);
-    setPage(0);
-    setHasMore(true);
-    fetchPosts(0);
-  }, [activeTab]);
+  // États pour les filtres
+  const [searchText, setSearchText] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const [filterType, setFilterType] = useState(""); // "text" ou "media"
+  const [filterUser, setFilterUser] = useState("");
 
   const fetchPosts = (pageNum: number) => {
     setLoading(true);
@@ -34,11 +32,23 @@ function TweetList({ activeTab }: TweetListProps) {
       navigate("/landing");
       return;
     }
-    const url =
-      activeTab === "abonnements"
-        ? `http://localhost:8080/api/posts?filter=following&page=${pageNum}`
-        : `http://localhost:8080/api/posts?page=${pageNum}`;
-
+    let url = activeTab === "abonnements" 
+      ? `http://localhost:8080/api/posts?filter=following&page=${pageNum}` 
+      : `http://localhost:8080/api/posts?page=${pageNum}`;
+    
+    if (searchText) {
+      url += `&search=${encodeURIComponent(searchText)}`;
+    }
+    if (filterDate) {
+      url += `&date=${encodeURIComponent(filterDate)}`;
+    }
+    if (filterType) {
+      url += `&type=${encodeURIComponent(filterType)}`;
+    }
+    if (filterUser) {
+      url += `&user=${encodeURIComponent(filterUser)}`;
+    }
+    
     fetch(url, {
       method: "GET",
       headers: {
@@ -49,18 +59,15 @@ function TweetList({ activeTab }: TweetListProps) {
       .then((response) =>
         response.json().then((data) => {
           if (!response.ok) {
-            if (response.status === 401) {
-              navigate("/landing");
-            } else if (response.status === 403) {
-              navigate("/");
-            }
+            if (response.status === 401) navigate("/landing");
+            else if (response.status === 403) navigate("/");
             throw new Error(data.error || "Erreur lors de la récupération des posts");
           }
           return data;
         })
       )
       .then((data) => {
-        setError(""); // réinitialiser l'erreur si tout est OK
+        setError("");
         const newPosts = data.posts;
         if (pageNum === 0) {
           setPosts(newPosts);
@@ -90,11 +97,22 @@ function TweetList({ activeTab }: TweetListProps) {
       setLoading(false);
       return;
     }
-    const url =
-      activeTab === "abonnements"
-        ? `http://localhost:8080/api/posts?filter=following&page=0`
-        : `http://localhost:8080/api/posts?page=0`;
-
+    let url = activeTab === "abonnements"
+      ? `http://localhost:8080/api/posts?filter=following&page=0`
+      : `http://localhost:8080/api/posts?page=0`;
+    if (searchText) {
+      url += `&search=${encodeURIComponent(searchText)}`;
+    }
+    if (filterDate) {
+      url += `&date=${encodeURIComponent(filterDate)}`;
+    }
+    if (filterType) {
+      url += `&type=${encodeURIComponent(filterType)}`;
+    }
+    if (filterUser) {
+      url += `&user=${encodeURIComponent(filterUser)}`;
+    }
+    
     fetch(url, {
       method: "GET",
       headers: {
@@ -135,8 +153,11 @@ function TweetList({ activeTab }: TweetListProps) {
   };
 
   useEffect(() => {
+    setPosts([]);
+    setPage(0);
+    setHasMore(true);
     fetchPosts(0);
-  }, []);
+  }, [activeTab, searchText, filterDate, filterType, filterUser]);
 
   useEffect(() => {
     if (page > 0) {
@@ -166,7 +187,7 @@ function TweetList({ activeTab }: TweetListProps) {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefreshEnabled, refreshInterval, activeTab]);
+  }, [autoRefreshEnabled, refreshInterval, activeTab, searchText, filterDate, filterType, filterUser]);
 
   const handleDelete = (tweetId: number) => {
     setPosts((prevPosts) => prevPosts.filter((post) => post.id !== tweetId));
@@ -174,6 +195,41 @@ function TweetList({ activeTab }: TweetListProps) {
 
   return (
     <main className="px-4 pb-16">
+      <div className="flex flex-col gap-4 my-4">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="p-2 rounded w-full text-white"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="p-2 rounded text-white fill-white "
+          />
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="p-2 rounded text-white"
+          >
+            <option value="">Tous les types</option>
+            <option value="text">Texte</option>
+            <option value="media">Médias</option>
+          </select>
+          <input
+            type="text"
+            placeholder="Utilisateur"
+            value={filterUser}
+            onChange={(e) => setFilterUser(e.target.value)}
+            className="p-2 rounded text-white"
+          />
+        </div>
+      </div>
       <div id="RefreshButton" className="flex justify-between items-center my-4">
         <Button
           text=""
@@ -209,21 +265,21 @@ function TweetList({ activeTab }: TweetListProps) {
       </div>
       {error && <p className="text-red-500">{error}</p>}
       {posts.map((post, index) => (
-  <Tweet
-    key={post.id || index}
-    tweetId={post.id}
-    author={post.username ? post.username : "Unnamed"}
-    content={post.content}
-    profilePicture={post.profilePicture || "default-profile.png"}
-    initialLikeCount={post.likeCount || 0}
-    initialLiked={post.liked || false}
-    media={post.media}
-    replies={post.replies}
-    isOwner={post.editable}
-    censored={post.censored}  // Nouvel attribut
-    onDelete={() => handleDelete(post.id)}
-  />
-))}
+        <Tweet
+          key={post.id || index}
+          tweetId={post.id}
+          author={post.username ? post.username : "Unnamed"}
+          content={post.content}
+          profilePicture={post.profilePicture || "default-profile.png"}
+          initialLikeCount={post.likeCount || 0}
+          initialLiked={post.liked || false}
+          media={post.media}
+          replies={post.replies}
+          isOwner={post.editable}
+          censored={post.censored}
+          onDelete={() => handleDelete(post.id)}
+        />
+      ))}
       {loading && <p>Chargement...</p>}
     </main>
   );

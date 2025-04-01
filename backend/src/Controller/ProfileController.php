@@ -16,106 +16,146 @@ use Symfony\Component\Routing\Annotation\Route;
 class ProfileController extends AbstractController
 {
     // Endpoint pour afficher le profil complet
-    #[Route('/profile/{username}', name: 'profile_show', methods: ['GET'])]
-    public function show(
-        string $username,
-        UserRepository $userRepository,
-        PostRepository $postRepository
-    ): JsonResponse {
-        $user = $userRepository->findOneBy(['username' => $username]);
-        if (!$user) {
-            return $this->json(['error' => 'Utilisateur non trouvé.'], 404);
-        }
-        
+    #[Route('/api/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
+    public function index(Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
+    {
         $currentUser = $this->getUser();
-        $isOwner = false;
-        $isFollowed = false;
-        if ($currentUser && $currentUser instanceof User) {
-            $isOwner = $currentUser->getId() === $user->getId();
-            if (!$isOwner) {
-                $isFollowed = $currentUser->getFollowing()->contains($user);
+        $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
+    
+        $page = $request->query->getInt('page', 1);
+        $count = 50;
+        $offset = max(0, ($page - 1) * $count);
+    
+        // Récupération des filtres
+        $filter = $request->query->get('filter'); // Par exemple "following"
+        $search = $request->query->get('search');
+        $date = $request->query->get('date'); // Format YYYY-MM-DD
+        $type = $request->query->get('type'); // "text" ou "media"
+        $userFilter = $request->query->get('user'); // nom d'utilisateur
+    
+        $qb = $postRepository->createQueryBuilder('p')
+                ->orderBy('p.createdAt', 'DESC');
+    
+        // Filtrer les posts des personnes suivies
+        if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
+            $followedUsers = $currentUser->getFollowing()->toArray();
+            $followedUserIds = array_map(fn($user) => $user->getId(), $followedUsers);
+            if (!empty($followedUserIds)) {
+                $qb->andWhere('p.user IN (:followedUserIds)')
+                   ->setParameter('followedUserIds', $followedUserIds);
+            } else {
+                return $this->json([
+                    'posts' => [],
+                    'previous_page' => null,
+                    'next_page' => null,
+                ]);
             }
         }
-        
-        $currentUserId = ($currentUser instanceof User) ? $currentUser->getId() : null;
-        $isBlocked = $user->getBlocked();
-        $userBlocked = false;
-        if ($currentUser instanceof User && !$isOwner) {
-            $userBlocked = $currentUser->getBlockedUsers()->contains($user);
+    
+        // Recherche textuelle dans le contenu
+        if ($search) {
+            $qb->andWhere('p.content LIKE :search')
+               ->setParameter('search', '%' . $search . '%');
         }
-        
-        $posts = $user->getPosts()->toArray();
-        usort($posts, function ($a, $b) {
-            return $a->getCreatedAt() <=> $b->getCreatedAt();
-        });
-        $tweets = [];
-        foreach ($posts as $post) {
-            $liked = false;
-            if ($currentUserId !== null) {
-                foreach ($post->getLikes() as $like) {
-                    if ($like->getUser()->getId() === $currentUserId) {
-                        $liked = true;
-                        break;
-                    }
-                }
+    
+        // Filtrer par date
+        if ($date) {
+            $qb->andWhere("function('DATE', p.createdAt) = :date")
+               ->setParameter('date', $date);
+        }
+    
+        // Filtrer par type
+        if ($type) {
+            if ($type === 'text') {
+                // Post sans médias
+                $qb->andWhere('p.media IS NULL OR p.media = :empty')
+                   ->setParameter('empty', '[]');
+            } elseif ($type === 'media') {
+                // Post avec médias
+                $qb->andWhere("p.media IS NOT NULL AND p.media <> :empty")
+                   ->setParameter('empty', '[]');
             }
-            $media = $post->getMedia() ?: [];
-            if ($isBlocked) {
-                $tweets[] = [
-                    'id'             => $post->getId(),
-                    'content'        => "Ce compte a été bloqué pour non respect des conditions d’utilisation",
-                    'createdAt'      => $post->getCreatedAt()->format('c'),
-                    'likeCount'      => 0,
-                    'liked'          => false,
-                    'editable'       => $isOwner,
-                    'media'          => $media,
+        }
+    
+        // Filtrer par utilisateur (nom d'utilisateur)
+        if ($userFilter) {
+            $qb->join('p.user', 'u')
+               ->andWhere('u.username = :usernameFilter')
+               ->setParameter('usernameFilter', $userFilter);
+        }
+    
+        $qb->setFirstResult($offset)
+           ->setMaxResults($count);
+    
+        $postsResult = $qb->getQuery()->getResult();
+    
+        // Pour la pagination, ici on compte le nombre de résultats retournés (pour simplifier)
+        $totalPostsCount = count($postsResult);
+        $previousPage = $page > 1 ? $page - 1 : null;
+        $nextPage = ($page * $count < $totalPostsCount) ? $page + 1 : null;
+    
+        $postsArray = [];
+        foreach ($postsResult as $post) {
+            if (!$post->getUser()) {
+                continue;
+            }
+            if ($post->getCensored()) {
+                // Post censuré
+                $data = [
+                    'id' => $post->getId(),
+                    'username' => $post->getUser()->getUsername() ?? "Unnamed",
+                    'content' => "Ce message enfreint les conditions d’utilisation de la plateforme",
+                    'createdAt' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount' => 0,
+                    'liked' => false,
+                    'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
+                    'media' => [],
+                    'replies' => [],
+                    'censored' => true,
                 ];
             } else {
-                $tweets[] = [
-                    'id'             => $post->getId(),
-                    'content'        => $post->getContent(),
-                    'createdAt'      => $post->getCreatedAt()->format('c'),
-                    'likeCount'      => $post->getLikesCount(),
-                    'liked'          => $liked,
-                    'editable'       => $isOwner,
-                    'media'          => $media,
+                $liked = false;
+                if ($currentUserId !== null) {
+                    foreach ($post->getLikes() as $like) {
+                        if ($like->getUser()->getId() === $currentUserId) {
+                            $liked = true;
+                            break;
+                        }
+                    }
+                }
+                $data = [
+                    'id' => $post->getId(),
+                    'username' => $post->getUser()->getUsername() ?? "Unnamed",
+                    'content' => $post->getUser()->getBlocked() 
+                                  ? "Ce compte a été bloqué pour non respect des conditions d’utilisation" 
+                                  : $post->getContent(),
+                    'createdAt' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount' => $post->getUser()->getBlocked() ? 0 : $post->getLikesCount(),
+                    'liked' => $post->getUser()->getBlocked() ? false : $liked,
+                    'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
+                    'media' => $post->getMedia() ?: [],
+                    'censored' => false,
                 ];
+                $repliesArray = [];
+                foreach ($post->getReplies() as $reply) {
+                    $repliesArray[] = [
+                        'id' => $reply->getId(),
+                        'username' => $reply->getUser()->getUsername() ?? "Unnamed",
+                        'content' => $reply->getContent(),
+                        'createdAt' => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+                        'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
+                        'media' => $reply->getMedia() ?: [],
+                    ];
+                }
+                $data['replies'] = $repliesArray;
             }
+            $postsArray[] = $data;
         }
-        
-        // Récupérer le tweet épinglé, s'il existe
-        $pinnedTweet = null;
-        if ($user->getPinnedTweet()) {
-            $pt = $user->getPinnedTweet();
-            $pinnedTweet = [
-                'id' => $pt->getId(),
-                'content' => $pt->getContent(),
-                'createdAt' => $pt->getCreatedAt()->format('c'),
-                'likeCount' => $pt->getLikesCount(),
-                'liked' => false, // Vous pouvez adapter cette valeur selon l'utilisateur courant
-                'media' => $pt->getMedia() ?: [],
-                'censored' => $pt->getCensored(),
-            ];
-        }
-        
-        $profileData = [
-            'username'       => $user->getUsername(),
-            'bio'            => method_exists($user, 'getBio') ? $user->getBio() : '',
-            'profilePicture' => $user->getProfilePicture(),
-            'banner'         => $user->getProfileBanner(),
-            'location'       => method_exists($user, 'getLocation') ? $user->getLocation() : '',
-            'website'        => method_exists($user, 'getWebsite') ? $user->getWebsite() : '',
-            'editable'       => $isOwner,
-            'followed'       => $isFollowed,
-            'blocked'        => $isBlocked,
-            'blockedUsers'   => $userBlocked,
-            'readOnly'       => method_exists($user, 'getReadOnly') ? $user->getReadOnly() : false,
-            'private'        => method_exists($user, 'getPrivate') ? $user->getPrivate() : false,
-        ];
+    
         return $this->json([
-            'profile' => $profileData,
-            'pinnedTweet' => $pinnedTweet,
-            'tweets'  => $tweets,
+            'posts' => $postsArray,
+            'previous_page' => $previousPage,
+            'next_page' => $nextPage,
         ]);
     }
 

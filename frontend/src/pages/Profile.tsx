@@ -50,7 +50,7 @@ const Profile: React.FC = () => {
       })
       .catch((err) => {
         console.error(err);
-        // Ici, vous pouvez choisir d'afficher une erreur globale
+        // Vous pouvez gérer une erreur globale ici si nécessaire
       })
       .finally(() => {
         setLoading(false);
@@ -61,7 +61,6 @@ const Profile: React.FC = () => {
     fetchProfile();
   }, [fetchProfile]);
 
-  // Fonction pour épingler un tweet
   const handlePinTweet = async (tweetId: number) => {
     const token = localStorage.getItem("token");
     try {
@@ -77,7 +76,7 @@ const Profile: React.FC = () => {
         alert(data.error || "Erreur lors de l'épinglage du tweet");
       } else {
         // Mettre à jour le tweet épinglé
-        setPinnedTweet({ id: tweetId, ...data }); // Ici, data contient au minimum 'pinnedTweet' (id)
+        setPinnedTweet({ id: tweetId, ...data });
       }
     } catch (error) {
       console.error("Erreur lors de l'épinglage du tweet", error);
@@ -85,7 +84,6 @@ const Profile: React.FC = () => {
     }
   };
 
-  // Fonction pour désépingler le tweet
   const handleUnpinTweet = async () => {
     const token = localStorage.getItem("token");
     try {
@@ -189,7 +187,12 @@ const Profile: React.FC = () => {
         <div className="mt-2 flex space-x-4 text-gray-500">
           {profile.location && <span>{profile.location}</span>}
           {profile.website && (
-            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+            <a
+              href={profile.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500"
+            >
               {profile.website}
             </a>
           )}
@@ -228,7 +231,9 @@ const Profile: React.FC = () => {
                   onClick={toggleBlock}
                   moreClasses="bg-red-500 text-white px-4 py-2 rounded"
                 />
-                {blockError && <p className="text-red-500 text-sm mt-1">{blockError}</p>}
+                {blockError && (
+                  <p className="text-red-500 text-sm mt-1">{blockError}</p>
+                )}
               </div>
             </div>
           )}
@@ -247,7 +252,7 @@ const Profile: React.FC = () => {
               initialLikeCount={pinnedTweet.likeCount || 0}
               initialLiked={pinnedTweet.liked || false}
               media={pinnedTweet.media}
-              replies={[]} // Les réponses ne sont pas affichées pour le tweet épinglé
+              replies={[]} 
               isOwner={profile.editable}
               censored={pinnedTweet.censored}
             />
@@ -276,8 +281,9 @@ const Profile: React.FC = () => {
                 media={tweet.media}
                 replies={tweet.replies}
                 isOwner={profile.editable}
+                censored={tweet.censored}
+                onDelete={() => handleDeleteTweet(tweet.id)}
               />
-              {/* Si le profil est éditable, afficher le bouton pour épingler ce tweet */}
               {profile.editable && (
                 <Button
                   text="Épingler"
