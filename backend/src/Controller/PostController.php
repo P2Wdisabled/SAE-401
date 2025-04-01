@@ -380,43 +380,60 @@ public function getHashtagPosts(string $tag, PostRepository $postRepository): Re
     ]);
 }
 #[Route('/api/posts/{id}/retweet', name: 'api_post_retweet', methods: ['POST'])]
-    public function retweet(Post $post, Request $request, EntityManagerInterface $em): JsonResponse
-    {
-        /** @var \App\Entity\User $user */
-        $user = $this->getUser();
-        if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
-        }
-    
-        $data = json_decode($request->getContent(), true);
-        $comment = $data['comment'] ?? null; // commentaire optionnel pour retweet
-    
-        // Création du retweet : une copie du tweet original
-        $retweet = new Post();
-        $retweet->setContent($post->getContent());
-        $retweet->setMedia($post->getMedia());
-        $retweet->setCreatedAt(new \DateTime());
-        $retweet->setUser($user);
-        $retweet->setIsRetweet(true);
-        $retweet->setRetweetComment($comment);
-        $retweet->setRetweetedFrom($post);
-        $em->persist($retweet);
-    
-        // Incrémenter le compteur de retweets sur le tweet original
-        $post->incrementRetweetCount();
-    
-        $em->flush();
-    
-        return $this->json([
-            'message' => 'Tweet retweeté avec succès.',
-            'retweet' => [
-                'id' => $retweet->getId(),
-                'content' => $retweet->getContent(),
-                'retweetComment' => $retweet->getRetweetComment(),
-                'createdAt' => $retweet->getCreatedAt()->format('Y-m-d H:i:s'),
-                'retweetCount' => $post->getRetweetCount(),
-            ]
-        ], Response::HTTP_CREATED);
+public function retweet(Post $post, Request $request, EntityManagerInterface $em): JsonResponse
+{
+    /** @var \App\Entity\User $user */
+    $user = $this->getUser();
+    if (!$user) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
     }
+
+    $data = json_decode($request->getContent(), true);
+    $comment = $data['comment'] ?? null; // commentaire optionnel pour retweet
+
+    // Création du retweet : une copie du tweet original
+    $retweet = new Post();
+    $retweet->setContent($post->getContent());
+    $retweet->setMedia($post->getMedia());
+    $retweet->setCreatedAt(new \DateTime());
+    $retweet->setUser($user);
+    $retweet->setIsRetweet(true);
+    $retweet->setRetweetedFrom($post);
+    $em->persist($retweet);
+
+    // Incrémenter le compteur de retweets sur le tweet original
+    $post->incrementRetweetCount();
+
+    $retweetReply = null;
+    // Si un commentaire est fourni, le créer comme réponse (reply) au retweet
+    if (!empty($comment)) {
+        $reply = new Post();
+        $reply->setContent($comment);
+        $reply->setCreatedAt(new \DateTime());
+        $reply->setUser($user);
+        $reply->setParent($retweet);
+        $em->persist($reply);
+        $retweetReply = [
+            'id' => $reply->getId(),
+            'content' => $reply->getContent(),
+            'createdAt' => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    $em->flush();
+
+    return $this->json([
+        'message' => 'Tweet retweeté avec succès.',
+        'retweet' => [
+            'id' => $retweet->getId(),
+            'content' => $retweet->getContent(),
+            'createdAt' => $retweet->getCreatedAt()->format('Y-m-d H:i:s'),
+            'retweetCount' => $post->getRetweetCount(),
+            'isRetweet' => $retweet->getIsRetweet(),
+            'retweetedFrom' => $post->getId(),
+            'reply' => $retweetReply, // null si aucun commentaire n'est fourni
+        ]
+    ], Response::HTTP_CREATED);
+}
 
 }
