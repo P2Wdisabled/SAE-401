@@ -44,4 +44,20 @@ class PostRepository extends ServiceEntityRepository
 
         return new Paginator($query);
     }
+    /**
+     * Recherche les posts dont le contenu contient le hashtag spécifié.
+     *
+     * @param string $tag Le hashtag (sans le symbole #)
+     * @return Post[]
+     */
+    public function findByHashtag(string $tag): array
+    {
+        $pattern = '%#' . $tag . '%';
+        return $this->createQueryBuilder('p')
+            ->where('p.content LIKE :pattern')
+            ->setParameter('pattern', $pattern)
+            ->orderBy('p.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

@@ -1,3 +1,4 @@
+
 // src/ui/tweet.tsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
@@ -14,6 +15,36 @@ type TweetProps = {
   media?: string[];   // URLs des médias associés
   replies?: any[];    // Réponses au tweet
   onDelete?: () => void;
+};
+
+// Fonction pour analyser et transformer le texte en incluant les hashtags et mentions cliquables
+const parseContent = (text: string): React.ReactNode[] => {
+  // Regex pour détecter hashtags et mentions
+  const regex = /(\B#[a-zA-Z0-9_]+)|(\B@[a-zA-Z0-9_]+)/g;
+  // Découper le texte en segments
+  const parts = text.split(regex);
+  return parts.map((part, index) => {
+    if (!part) return null;
+    if (part.startsWith("#")) {
+      // Hashtag : redirige vers /hashtag/{tag}
+      const tag = part.substring(1);
+      return (
+        <Link key={index} to={`/hashtag/${tag}`} className="text-blue-400 hover:underline">
+          {part}
+        </Link>
+      );
+    } else if (part.startsWith("@")) {
+      // Mention : redirige vers /profile/{username}
+      const username = part.substring(1);
+      return (
+        <Link key={index} to={`/profile/${username}`} className="text-blue-400 hover:underline">
+          {part}
+        </Link>
+      );
+    } else {
+      return part;
+    }
+  });
 };
 
 const Tweet: React.FC<TweetProps> = ({
@@ -66,6 +97,9 @@ const Tweet: React.FC<TweetProps> = ({
       setActionError("Erreur lors du toggle like");
     }
   };
+
+
+  
 
   // Fonction pour supprimer le tweet
   const handleDelete = async () => {
@@ -220,7 +254,11 @@ const Tweet: React.FC<TweetProps> = ({
           </Link>
           {!isEditing ? (
             <>
-              <p className={`text-gray-300 ${censored ? "italic" : ""}`}>{content}</p>
+              {/* Si le tweet est censuré, le contenu s'affiche en italique */}
+              <p className={`text-gray-300 ${censored ? "italic" : ""}`}>
+                {parseContent(content)}
+              </p>
+              {/* N'afficher pas les médias si le post est censuré */}
               {!censored && media && media.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {media.map((url, index) =>
@@ -248,6 +286,7 @@ const Tweet: React.FC<TweetProps> = ({
               )}
             </>
           ) : (
+            // Bloc édition (inchangé)
             <>
               <textarea
                 className="w-full bg-transparent text-white outline-none resize-none placeholder-gray-400"

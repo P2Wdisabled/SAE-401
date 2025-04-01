@@ -323,5 +323,62 @@ public function update(
         ]
     ], Response::HTTP_OK);
 }
+#[Route('/api/hashtag/{tag}', name: 'api_hashtag_posts', methods: ['GET'], format: 'json')]
+public function getHashtagPosts(string $tag, PostRepository $postRepository): Response
+{
+    // Récupérer les posts contenant le hashtag dans le contenu
+    $posts = $postRepository->findByHashtag($tag);
+
+    $postsArray = [];
+    foreach ($posts as $post) {
+        if (!$post->getUser()) {
+            continue;
+        }
+        if ($post->getCensored()) {
+            $data = [
+                'id' => $post->getId(),
+                'username' => $post->getUser()->getUsername() ?? "Unnamed",
+                'content' => "Ce message enfreint les conditions d’utilisation de la plateforme",
+                'createdAt' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'likeCount' => 0,
+                'liked' => false,
+                'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
+                'media' => [],
+                'replies' => [],
+                'censored' => true,
+            ];
+        } else {
+            $data = [
+                'id' => $post->getId(),
+                'username' => $post->getUser()->getUsername() ?? "Unnamed",
+                'content' => $post->getContent(),
+                'createdAt' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'likeCount' => $post->getLikesCount(),
+                'liked' => false, // À adapter si besoin de vérifier pour l'utilisateur courant
+                'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
+                'media' => $post->getMedia() ?: [],
+                'censored' => false,
+            ];
+            $repliesArray = [];
+            foreach ($post->getReplies() as $reply) {
+                $repliesArray[] = [
+                    'id' => $reply->getId(),
+                    'username' => $reply->getUser()->getUsername() ?? "Unnamed",
+                    'content' => $reply->getContent(),
+                    'createdAt' => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
+                    'media' => $reply->getMedia() ?: [],
+                ];
+            }
+            $data['replies'] = $repliesArray;
+        }
+        $postsArray[] = $data;
+    }
+
+    return $this->json([
+        'posts' => array_values($postsArray)
+    ]);
+}
+
 
 }
