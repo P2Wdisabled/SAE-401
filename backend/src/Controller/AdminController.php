@@ -195,39 +195,48 @@ class AdminController extends AbstractController
 
     // Nouvelle route pour récupérer les posts à modérer par l'admin (pour le dashboard de censure)
     #[Route('/admin/posts', name: 'admin_posts', methods: ['GET'], format: 'json')]
-    public function getPosts(Request $request, PostRepository $postRepository): Response
-    {
-        if ($response = $this->ensureAdmin()) {
-            return $response;
-        }
-        
-        $search = $request->query->get('search', '');
-        
-        // Récupérer tous les posts. Pour une version de production, pensez à paginer et optimiser la requête.
-        $posts = $postRepository->findAll();
-
-        // Filtrer par recherche si besoin
-        if ($search) {
-            $posts = array_filter($posts, function($post) use ($search) {
-                return stripos($post->getContent(), $search) !== false;
-            });
-        }
-
-        $postsArray = array_map(function($post) {
-            return [
-                'id'        => $post->getId(),
-                'username'  => $post->getUser() ? $post->getUser()->getUsername() : 'Unknown',
-                'content'   => $post->getContent(),
-                'censored'  => $post->getCensored(),
-                'likeCount' => $post->getLikesCount(), // Méthode à implémenter dans l'entité ou repository
-                'media'     => $post->getMedia(),       // Assurez-vous que cette méthode existe
-                'replies'   => $post->getReplies(),     // idem
-                'retweets'  => method_exists($post, 'getRetweetsCount') ? $post->getRetweetsCount() : 0,
-            ];
-        }, $posts);
-
-        return $this->json([
-            'posts' => array_values($postsArray)
-        ]);
+public function getPosts(Request $request, PostRepository $postRepository): Response
+{
+    if ($response = $this->ensureAdmin()) {
+        return $response;
     }
+    
+    $search = $request->query->get('search', '');
+    
+    // Récupérer tous les posts. Pour une version de production, pensez à paginer et optimiser la requête.
+    $posts = $postRepository->findAll();
+
+    // Filtrer par recherche si besoin
+    if ($search) {
+        $posts = array_filter($posts, function($post) use ($search) {
+            return stripos($post->getContent(), $search) !== false;
+        });
+    }
+
+    $postsArray = array_map(function($post) {
+        return [
+            'id'        => $post->getId(),
+            'username'  => $post->getUser() ? $post->getUser()->getUsername() : 'Unknown',
+            'content'   => $post->getContent(),
+            'censored'  => $post->getCensored(),
+            'likeCount' => $post->getLikesCount(), // Assurez-vous que cette méthode est définie
+            'media'     => $post->getMedia(),       // Cette méthode doit retourner un tableau (par exemple d'URLs)
+            // Pour éviter la référence circulaire, on mappe manuellement les réponses
+            'replies'   => array_map(function($reply) {
+                return [
+                    'id'        => $reply->getId(),
+                    'content'   => $reply->getContent(),
+                    'createdAt' => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'username'  => $reply->getUser() ? $reply->getUser()->getUsername() : 'Unknown',
+                ];
+            }, $post->getReplies()->toArray()),
+            'retweets'  => method_exists($post, 'getRetweetsCount') ? $post->getRetweetsCount() : 0,
+        ];
+    }, $posts);
+
+    return $this->json([
+        'posts' => array_values($postsArray)
+    ]);
+}
+
 }

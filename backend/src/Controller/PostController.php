@@ -20,34 +20,49 @@ use Doctrine\ORM\EntityManagerInterface;
 class PostController extends AbstractController
 {
     #[Route('/api/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
-    public function index(Request $request, PostRepository $postRepository): Response
-    {
-        $currentUser = $this->getUser();
-        $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
+public function index(Request $request, PostRepository $postRepository): Response
+{
+    $currentUser = $this->getUser();
+    $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
 
-        $page = $request->query->getInt('page', 1);
-        $count = 50;
-        $offset = max(0, ($page - 1) * $count);
+    $page = $request->query->getInt('page', 1);
+    $count = 50;
+    $offset = max(0, ($page - 1) * $count);
 
-        $filter = $request->query->get('filter');
-        if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
-            /** @var \App\Entity\User $currentUser */
-            $followedUsers = $currentUser->getFollowing()->toArray();
-            $followedUserIds = array_map(fn($user) => $user->getId(), $followedUsers);
-            $paginator = $postRepository->paginatePostsByUsers($followedUserIds, $offset, $count);
-        } else {
-            $paginator = $postRepository->paginateAllOrderedByLatest($offset, $count);
+    $filter = $request->query->get('filter');
+    if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
+        /** @var \App\Entity\User $currentUser */
+        $followedUsers = $currentUser->getFollowing()->toArray();
+        $followedUserIds = array_map(fn($user) => $user->getId(), $followedUsers);
+        $paginator = $postRepository->paginatePostsByUsers($followedUserIds, $offset, $count);
+    } else {
+        $paginator = $postRepository->paginateAllOrderedByLatest($offset, $count);
+    }
+
+    $totalPostsCount = $paginator->count();
+    $previousPage = $page > 1 ? $page - 1 : null;
+    $nextPage = (($page * $count) < $totalPostsCount) ? $page + 1 : null;
+
+    $postsArray = [];
+    foreach ($paginator as $post) {
+        if (!$post->getUser()) {
+            continue;
         }
-
-        $totalPostsCount = $paginator->count();
-        $previousPage = $page > 1 ? $page - 1 : null;
-        $nextPage = (($page * $count) < $totalPostsCount) ? $page + 1 : null;
-
-        $postsArray = [];
-        foreach ($paginator as $post) {
-            if (!$post->getUser()) {
-                continue;
-            }
+        if ($post->getCensored()) {
+            // Post censuré: contenu de remplacement en italique et aucun média/réponses
+            $tweetData = [
+                'id'             => $post->getId(),
+                'username'       => $post->getUser()->getUsername() ?? "Unnamed",
+                'content'        => "Ce message enfreint les conditions d’utilisation de la plateforme",
+                'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'likeCount'      => 0,
+                'liked'          => false,
+                'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
+                'media'          => [],
+                'replies'        => [],
+                'censored'       => true,
+            ];
+        } else {
             $liked = false;
             if ($currentUserId !== null) {
                 foreach ($post->getLikes() as $like) {
@@ -68,6 +83,7 @@ class PostController extends AbstractController
                 'liked'          => $post->getUser()->getBlocked() ? false : $liked,
                 'profilePicture' => $post->getUser()->getProfilePicture() ?? 'default-profile.png',
                 'media'          => $post->getMedia() ?: [],
+                'censored'       => false,
             ];
             $repliesArray = [];
             foreach ($post->getReplies() as $reply) {
@@ -81,15 +97,17 @@ class PostController extends AbstractController
                 ];
             }
             $tweetData['replies'] = $repliesArray;
-            $postsArray[] = $tweetData;
         }
-
-        return $this->json([
-            'posts'         => $postsArray,
-            'previous_page' => $previousPage,
-            'next_page'     => $nextPage,
-        ]);
+        $postsArray[] = $tweetData;
     }
+
+    return $this->json([
+        'posts'         => $postsArray,
+        'previous_page' => $previousPage,
+        'next_page'     => $nextPage,
+    ]);
+}
+
 
     #[Route('/api/posts/{id}/like', name: 'api_post_toggle_like', methods: ['POST'])]
 public function toggleLike(Post $post, EntityManagerInterface $em): JsonResponse

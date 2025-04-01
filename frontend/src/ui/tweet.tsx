@@ -10,8 +10,9 @@ type TweetProps = {
   initialLikeCount: number;
   initialLiked: boolean;
   isOwner: boolean;
-  media?: string[]; // URLs des médias associés
-  replies?: any[];  // Réponses au tweet
+  censored?: boolean; // Indique si le tweet est censuré
+  media?: string[];   // URLs des médias associés
+  replies?: any[];    // Réponses au tweet
   onDelete?: () => void;
 };
 
@@ -22,6 +23,7 @@ const Tweet: React.FC<TweetProps> = ({
   profilePicture,
   initialLikeCount,
   initialLiked,
+  censored = false,
   media = [],
   replies = [],
   isOwner,
@@ -35,12 +37,11 @@ const Tweet: React.FC<TweetProps> = ({
   const [newMediaFiles, setNewMediaFiles] = useState<File[]>([]);
   const [showReplyForm, setShowReplyForm] = useState<boolean>(false);
   const [replyContent, setReplyContent] = useState<string>("");
-  // Initialiser les réponses depuis la prop afin qu'elles soient affichées après rechargement
   const [localReplies, setLocalReplies] = useState<any[]>(replies);
-  // État pour afficher les messages d'erreur issus des requêtes
   const [actionError, setActionError] = useState<string>("");
   const navigate = useNavigate();
 
+  // Fonction pour toggler le like
   const toggleLike = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -66,6 +67,7 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
+  // Fonction pour supprimer le tweet
   const handleDelete = async () => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce tweet ?")) {
       return;
@@ -93,6 +95,7 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
+  // Fonction pour sauvegarder les modifications d'édition
   const handleEditSave = async () => {
     const token = localStorage.getItem("token");
     let uploadedMediaUrls: string[] = [];
@@ -137,7 +140,6 @@ const Tweet: React.FC<TweetProps> = ({
         return;
       }
       const data = await response.json();
-      // On met à jour l'affichage avec les données retournées
       setEditMedia(data.post.media);
       setIsEditing(false);
       setActionError("");
@@ -147,6 +149,7 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
+  // Annuler l'édition
   const handleCancelEdit = () => {
     setEditContent(content);
     setEditMedia(media);
@@ -155,6 +158,7 @@ const Tweet: React.FC<TweetProps> = ({
     setActionError("");
   };
 
+  // Gestion du changement de nouveaux fichiers médias
   const handleNewMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
@@ -162,14 +166,17 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
+  // Supprimer un média existant lors de l'édition
   const removeExistingMedia = (url: string) => {
     setEditMedia((prev) => prev.filter((mediaUrl) => mediaUrl !== url));
   };
 
+  // Supprimer un nouveau média (non encore uploadé)
   const removeNewMedia = (file: File) => {
     setNewMediaFiles((prev) => prev.filter((f) => f !== file));
   };
 
+  // Envoi d'une réponse
   const handleReplySubmit = async () => {
     if (replyContent.trim() === "") return;
     const token = localStorage.getItem("token");
@@ -211,7 +218,36 @@ const Tweet: React.FC<TweetProps> = ({
           <Link to={`/profile/${author}`}>
             <p className="text-white font-semibold">{author}</p>
           </Link>
-          {isEditing ? (
+          {!isEditing ? (
+            <>
+              <p className={`text-gray-300 ${censored ? "italic" : ""}`}>{content}</p>
+              {!censored && media && media.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {media.map((url, index) =>
+                    url.match(/\.(jpeg|jpg|gif|png|svg|webp)$/i) ? (
+                      <img key={index} src={url} alt={`media-${index}`} className="max-h-60 object-cover" />
+                    ) : url.match(/\.(mp4|mov|avi|flv|mvw|webm|mkv)$/i) ? (
+                      <video key={index} src={url} controls className="max-h-60 object-cover" />
+                    ) : url.match(/\.(mp3|wav|flac|aiff|alac|aac|ogg|wma)$/i) ? (
+                      <audio key={index} controls className="max-h-60">
+                        <source src={url} type="audio/mpeg" />
+                      </audio>
+                    ) : (
+                      <a
+                        key={index}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 border rounded bg-gray-100 text-blue-600 hover:underline"
+                      >
+                        📄 Voir le fichier {url.split('/').pop()}
+                      </a>
+                    )
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
             <>
               <textarea
                 className="w-full bg-transparent text-white outline-none resize-none placeholder-gray-400"
@@ -239,25 +275,6 @@ const Tweet: React.FC<TweetProps> = ({
                   )}
                 </div>
               )}
-              {newMediaFiles && newMediaFiles.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {newMediaFiles.map((file, index) => {
-                    const preview = URL.createObjectURL(file);
-                    return (
-                      <div key={index} className="relative">
-                        {file.type.startsWith("image") ? (
-                          <img src={preview} alt={`new-media-${index}`} className="max-h-60 object-cover" />
-                        ) : (
-                          <video src={preview} controls className="max-h-60 object-cover" />
-                        )}
-                        <button className="absolute top-0 right-0 bg-red-500 text-white px-1" onClick={() => removeNewMedia(file)}>
-                          X
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
               <div className="mt-2">
                 <label htmlFor={`new-media-${tweetId}`} className="cursor-pointer bg-gray-700 p-2 rounded">
                   Ajouter des fichiers
@@ -279,35 +296,6 @@ const Tweet: React.FC<TweetProps> = ({
                   Annuler
                 </button>
               </div>
-            </>
-          ) : (
-            <>
-              <p className="text-gray-300">{content}</p>
-              {media && media.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {media.map((url, index) =>
-                    url.match(/\.(jpeg|jpg|gif|png|svg|webp)$/i) ? (
-                      <img key={index} src={url} alt={`media-${index}`} className="max-h-60 object-cover" />
-                    ) : url.match(/\.(mp4|mov|avi|flv|mvw|webm|mkv)$/i) ? (
-                      <video key={index} src={url} controls className="max-h-60 object-cover" />
-                    ) : url.match(/\.(mp3|wav|flac|aiff|alac|aac|ogg|wma)$/i) ? (
-                      <audio key={index} controls className="max-h-60">
-                        <source src={url} type="audio/mpeg" />
-                      </audio>
-                    ) : (
-                      <a
-                        key={index}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 border rounded bg-gray-100 text-blue-600 hover:underline"
-                      >
-                        📄 Voir le fichier {url.split('/').pop()}
-                      </a>
-                    )
-                  )}
-                </div>
-              )}
             </>
           )}
           <div className="flex items-center gap-4 mt-2">
@@ -339,7 +327,6 @@ const Tweet: React.FC<TweetProps> = ({
                 Supprimer
               </button>
             )}
-            {/* Bouton Répondre */}
             <button
               onClick={() => setShowReplyForm((prev) => !prev)}
               className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
@@ -366,9 +353,7 @@ const Tweet: React.FC<TweetProps> = ({
               </div>
             </div>
           )}
-          {/* Affichage des erreurs d'action */}
           {actionError && <p className="text-red-500 mt-2">{actionError}</p>}
-          {/* Affichage des réponses */}
           {localReplies.length > 0 && (
             <div className="mt-4 pl-8 border-l border-gray-600">
               {localReplies.map((reply, index) => (
