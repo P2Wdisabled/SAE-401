@@ -178,7 +178,9 @@ class PostController extends AbstractController
     public function create(
         Request $request,
         ValidatorInterface $validator,
-        PostService $postService
+        PostService $postService,
+        UserRepository $userRepository,
+        EntityManagerInterface $em
     ): JsonResponse {
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
@@ -211,6 +213,22 @@ class PostController extends AbstractController
         }
 
         $postService->create($payload, $user);
+
+        // Détection des mentions sous la forme "@{username}"
+        if (preg_match_all('/@([a-zA-Z0-9_]+)/', $content, $matches)) {
+            foreach ($matches[1] as $mentionedUsername) {
+                // Rechercher l'utilisateur mentionné
+                $mentionedUser = $userRepository->findOneBy(['username' => $mentionedUsername]);
+                // Envoyer la notification si l'utilisateur existe et n'est pas l'expéditeur
+                if ($mentionedUser && $mentionedUser !== $user) {
+                    $notification = new Notification();
+                    $notification->setContent($user->getUsername() . " vous a mentionné dans un tweet.");
+                    $notification->setRecipient($mentionedUser);
+                    $em->persist($notification);
+                }
+            }
+            $em->flush();
+        }
 
         return $this->json(['message' => 'Post créé avec succès.'], Response::HTTP_CREATED);
     }
