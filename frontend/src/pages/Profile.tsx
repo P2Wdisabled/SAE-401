@@ -14,6 +14,8 @@ const Profile: React.FC = () => {
   const [blockError, setBlockError] = useState<string>("");
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [showPendingPopup, setShowPendingPopup] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotificationsPopup, setShowNotificationsPopup] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
@@ -72,16 +74,34 @@ const Profile: React.FC = () => {
       .catch((err) => console.error(err));
   }, []);
 
+  const fetchNotifications = useCallback(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    fetch("http://localhost:8080/api/notifications", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token,
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setNotifications(data.notifications || []);
+      })
+      .catch((err) => console.error(err));
+  }, []);
+
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
 
-  // Si le profil appartient à l'utilisateur connecté, récupérer les demandes en attente
+  // Si le profil appartient à l'utilisateur connecté, récupérer les demandes pending et notifications
   useEffect(() => {
     if (profile && profile.editable) {
       fetchPendingRequests();
+      fetchNotifications();
     }
-  }, [profile, fetchPendingRequests]);
+  }, [profile, fetchPendingRequests, fetchNotifications]);
 
   const handleAcceptRequest = async (followerUsername: string) => {
     const token = localStorage.getItem("token");
@@ -99,6 +119,7 @@ const Profile: React.FC = () => {
       } else {
         alert(data.message);
         fetchPendingRequests();
+        fetchNotifications();
       }
     } catch (error) {
       console.error(error);
@@ -122,6 +143,7 @@ const Profile: React.FC = () => {
       } else {
         alert(data.message);
         fetchPendingRequests();
+        fetchNotifications();
       }
     } catch (error) {
       console.error(error);
@@ -247,11 +269,11 @@ const Profile: React.FC = () => {
           alt="Photo de profil"
           className="absolute bottom-0 left-4 w-24 h-24 rounded-full border-4 border-white transform translate-y-1/2"
         />
-        {/* Icône cloche pour les demandes en attente, visible uniquement pour le propriétaire */}
+        {/* Icône cloche pour les demandes en attente */}
         {profile.editable && pendingRequests.length > 0 && (
           <button
             onClick={() => setShowPendingPopup(!showPendingPopup)}
-            className="absolute top-4 right-4 text-white"
+            className="absolute top-4 right-16 text-white"
             title="Demandes de suivi en attente"
           >
             <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
@@ -259,8 +281,21 @@ const Profile: React.FC = () => {
             </svg>
           </button>
         )}
+        {/* Icône cloche pour les notifications, positionnée encore plus à droite hors de la bannière */}
+        {profile.editable && notifications.length > 0 && (
+          <button
+            onClick={() => setShowNotificationsPopup(!showNotificationsPopup)}
+            className="absolute top-4"
+            style={{ right: "-40px" }}
+            title="Notifications"
+          >
+            <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
+              <path d="M12 22c1.104 0 2-.897 2-2H10c0 1.103.896 2 2 2zm6-6V11c0-3.309-2.691-6-6-6S6 7.691 6 11v5l-2 2v1h16v-1l-2-2zm-2 .001H8V11c0-2.206 1.794-4 4-4s4 1.794 4 4v5z" />
+            </svg>
+          </button>
+        )}
         {showPendingPopup && (
-          <div className="absolute top-12 right-4 bg-white text-black p-4 rounded shadow-lg z-50">
+          <div className="absolute top-12 right-16 bg-white text-black p-4 rounded shadow-lg z-50">
             <h3 className="font-bold mb-2">Demandes de suivi</h3>
             {pendingRequests.length === 0 ? (
               <p>Aucune demande en attente.</p>
@@ -293,6 +328,28 @@ const Profile: React.FC = () => {
             <button
               className="mt-2 text-blue-500 underline text-sm"
               onClick={() => setShowPendingPopup(false)}
+            >
+              Fermer
+            </button>
+          </div>
+        )}
+        {showNotificationsPopup && (
+          <div className="absolute top-12 right-0 bg-white text-black p-4 rounded shadow-lg z-50 max-h-80 overflow-y-auto">
+            <h3 className="font-bold mb-2">Notifications</h3>
+            {notifications.length === 0 ? (
+              <p>Aucune notification.</p>
+            ) : (
+              notifications.map((notif: any) => (
+                <div key={notif.id} className="mb-2 text-sm">
+                  <span>{notif.content}</span>
+                  <br />
+                  <span className="text-gray-500">{new Date(notif.createdAt).toLocaleString()}</span>
+                </div>
+              ))
+            )}
+            <button
+              className="mt-2 text-blue-500 underline text-sm"
+              onClick={() => setShowNotificationsPopup(false)}
             >
               Fermer
             </button>

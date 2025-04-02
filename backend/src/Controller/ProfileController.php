@@ -7,8 +7,10 @@ use App\Repository\UserRepository;
 use App\Repository\PostRepository;
 use App\Entity\User;
 use App\Entity\Post;
+use App\Entity\Notification;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Repository\NotificationRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
@@ -37,7 +39,7 @@ class ProfileController extends AbstractController
             }
         }
         
-        // Si le compte est privé et que l'utilisateur n'est ni le propriétaire ni un abonné approuvé, ne pas renvoyer les tweets.
+        // Si le compte est privé et que l'utilisateur n'est ni le propriétaire ni un abonné approuvé, renvoyer un message
         if ($user->getPrivate() && !$isOwner && !$isFollowed) {
             return $this->json([
                 'profile' => [
@@ -218,112 +220,133 @@ class ProfileController extends AbstractController
     }
 
     #[Route('/api/profile/{username}/follow', name: 'api_profile_toggle_follow', methods: ['POST'])]
-public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
-{
-    /** @var User|null $currentUser */
-    $currentUser = $this->getUser();
-    if (!$currentUser instanceof User) {
-        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
-    }
-    $targetUser = $userRepository->findOneBy(['username' => $username]);
-    if (!$targetUser) {
-        return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
-    }
-    if ($targetUser->getBlockedUsers()->contains($currentUser)) {
-        return $this->json(
-            ['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a bloqué.'],
-            JsonResponse::HTTP_FORBIDDEN
-        );
-    }
-    // Si le compte est privé, ajouter la demande dans la liste pending
-    if ($targetUser->getPrivate()) {
-        if (!$targetUser->getPendingFollowRequests()->contains($currentUser)) {
-            $targetUser->addPendingFollowRequest($currentUser);
-            $em->flush();
-            return $this->json([
-                'message' => 'Demande de suivi envoyée. En attente d\'approbation.'
-            ], JsonResponse::HTTP_OK);
-        } else {
-            return $this->json([
-                'message' => 'Vous avez déjà envoyé une demande de suivi.'
-            ], JsonResponse::HTTP_OK);
+    public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
+        $targetUser = $userRepository->findOneBy(['username' => $username]);
+        if (!$targetUser) {
+            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+        }
+        if ($targetUser->getBlockedUsers()->contains($currentUser)) {
+            return $this->json(
+                ['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a bloqué.'],
+                JsonResponse::HTTP_FORBIDDEN
+            );
+        }
+        // Si le compte est privé, gérer la demande d'abonnement
+        if ($targetUser->getPrivate()) {
+            // Si l'utilisateur est déjà un abonné (suivi approuvé), permettre l'unfollow
+            if ($targetUser->getFollowers()->contains($currentUser)) {
+                $currentUser->unfollow($targetUser);
+                $em->flush();
+                return $this->json([
+                    'message' => 'Action effectuée: unfollowed',
+                    'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
+                ]);
+            } else {
+                // Sinon, si aucune demande n'est en attente, ajouter le demandeur dans pending
+                if (!$targetUser->getPendingFollowRequests()->contains($currentUser)) {
+                    $targetUser->addPendingFollowRequest($currentUser);
+                    $em->flush();
+                    return $this->json([
+                        'message' => 'Demande de suivi envoyée. En attente d\'approbation.'
+                    ], JsonResponse::HTTP_OK);
+                } else {
+                    return $this->json([
+                        'message' => 'Vous avez déjà envoyé une demande de suivi.'
+                    ], JsonResponse::HTTP_OK);
+                }
+            }
+        }
+        // Si le compte n'est pas privé, établir directement la relation de suivi
+        $action = "";
+        if ($currentUser->getFollowing()->contains($targetUser)) {
+            $currentUser->unfollow($targetUser);
+            $action = 'unfollowed';
+        } else {
+            $currentUser->follow($targetUser);
+            $action = 'followed';
+        }
+        $em->flush();
+        return $this->json([
+            'message' => 'Action effectuée: ' . $action,
+            'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
+        ]);
     }
-    // Sinon, établir directement la relation de suivi
-    $action = "";
-    if ($currentUser->getFollowing()->contains($targetUser)) {
-        $currentUser->unfollow($targetUser);
-        $action = 'unfollowed';
-    } else {
-        $currentUser->follow($targetUser);
-        $action = 'followed';
-    }
-    $em->flush();
-    return $this->json([
-        'message' => 'Action effectuée: ' . $action,
-        'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
-    ]);
-}
 
-#[Route('/api/profile/pending', name: 'api_profile_pending', methods: ['GET'])]
-public function getPendingFollowRequests(): JsonResponse
-{
-    /** @var User|null $currentUser */
-    $currentUser = $this->getUser();
-    if (!$currentUser instanceof User) {
-        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    #[Route('/api/profile/pending', name: 'api_profile_pending', methods: ['GET'])]
+    public function getPendingFollowRequests(): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $pending = [];
+        foreach ($currentUser->getPendingFollowRequests() as $pendingUser) {
+            $pending[] = [
+                'username' => $pendingUser->getUsername(),
+                'profilePicture' => $pendingUser->getProfilePicture(),
+            ];
+        }
+        return $this->json(['pendingFollowRequests' => $pending]);
     }
-    $pending = [];
-    foreach ($currentUser->getPendingFollowRequests() as $pendingUser) {
-        $pending[] = [
-            'username' => $pendingUser->getUsername(),
-            'profilePicture' => $pendingUser->getProfilePicture(),
-        ];
-    }
-    return $this->json(['pendingFollowRequests' => $pending]);
-}
 
-#[Route('/api/profile/pending/{followerUsername}/accept', name: 'api_profile_pending_accept', methods: ['POST'])]
-public function acceptFollowRequest(string $followerUsername, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
-{
-    /** @var User|null $currentUser */
-    $currentUser = $this->getUser();
-    if (!$currentUser instanceof User) {
-        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    #[Route('/api/profile/pending/{followerUsername}/accept', name: 'api_profile_pending_accept', methods: ['POST'])]
+    public function acceptFollowRequest(string $followerUsername, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $follower = $userRepository->findOneBy(['username' => $followerUsername]);
+        if (!$follower) {
+            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+        }
+        if (!$currentUser->getPendingFollowRequests()->contains($follower)) {
+            return $this->json(['error' => 'Aucune demande de suivi de cet utilisateur.'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+        // Supprimer la demande pending et établir la relation de suivi
+        $currentUser->removePendingFollowRequest($follower);
+        $follower->follow($currentUser);
+        // Créer une notification pour informer le demandeur
+        $notification = new Notification();
+        $notification->setContent("Votre demande de suivi a été ACCEPTÉE par " . $currentUser->getUsername() . ".");
+        $notification->setRecipient($follower);
+        $em->persist($notification);
+        $em->flush();
+        return $this->json(['message' => 'Demande de suivi acceptée.']);
     }
-    $follower = $userRepository->findOneBy(['username' => $followerUsername]);
-    if (!$follower) {
-        return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
-    }
-    if (!$currentUser->getPendingFollowRequests()->contains($follower)) {
-        return $this->json(['error' => 'Aucune demande de suivi de cet utilisateur.'], JsonResponse::HTTP_BAD_REQUEST);
-    }
-    // Accepter la demande : supprimer de pending et établir la relation de suivi
-    $currentUser->removePendingFollowRequest($follower);
-    $follower->follow($currentUser);
-    $em->flush();
-    return $this->json(['message' => 'Demande de suivi acceptée.']);
-}
 
-#[Route('/api/profile/pending/{followerUsername}/decline', name: 'api_profile_pending_decline', methods: ['POST'])]
-public function declineFollowRequest(string $followerUsername, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
-{
-    /** @var User|null $currentUser */
-    $currentUser = $this->getUser();
-    if (!$currentUser instanceof User) {
-        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    #[Route('/api/profile/pending/{followerUsername}/decline', name: 'api_profile_pending_decline', methods: ['POST'])]
+    public function declineFollowRequest(string $followerUsername, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $follower = $userRepository->findOneBy(['username' => $followerUsername]);
+        if (!$follower) {
+            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+        }
+        if (!$currentUser->getPendingFollowRequests()->contains($follower)) {
+            return $this->json(['error' => 'Aucune demande de suivi de cet utilisateur.'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+        $currentUser->removePendingFollowRequest($follower);
+        // Créer une notification pour informer le demandeur
+        $notification = new Notification();
+        $notification->setContent("Votre demande de suivi a été REFUSÉE par " . $currentUser->getUsername() . ".");
+        $notification->setRecipient($follower);
+        $em->persist($notification);
+        $em->flush();
+        return $this->json(['message' => 'Demande de suivi refusée.']);
     }
-    $follower = $userRepository->findOneBy(['username' => $followerUsername]);
-    if (!$follower) {
-        return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
-    }
-    if (!$currentUser->getPendingFollowRequests()->contains($follower)) {
-        return $this->json(['error' => 'Aucune demande de suivi de cet utilisateur.'], JsonResponse::HTTP_BAD_REQUEST);
-    }
-    $currentUser->removePendingFollowRequest($follower);
-    $em->flush();
-    return $this->json(['message' => 'Demande de suivi refusée.']);
-}
 
     #[Route('/api/profile/{username}/block', name: 'api_profile_toggle_block', methods: ['POST'])]
     public function toggleBlock(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
@@ -453,5 +476,29 @@ public function declineFollowRequest(string $followerUsername, UserRepository $u
         $currentUser->setPinnedTweet(null);
         $em->flush();
         return $this->json(['message' => 'Tweet désépinglé avec succès.']);
+    }
+
+    #[Route('/api/notifications', name: 'api_notifications', methods: ['GET'])]
+    public function index(NotificationRepository $notificationRepository): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        
+        // Récupérer les notifications pour l'utilisateur connecté, triées par date décroissante
+        $notifications = $notificationRepository->findBy(['recipient' => $user], ['createdAt' => 'DESC']);
+        
+        $data = [];
+        foreach ($notifications as $notification) {
+            $data[] = [
+                'id' => $notification->getId(),
+                'content' => $notification->getContent(),
+                'createdAt' => $notification->getCreatedAt()->format('c'),
+                'isRead' => $notification->isRead(),
+            ];
+        }
+        
+        return $this->json(['notifications' => $data]);
     }
 }
