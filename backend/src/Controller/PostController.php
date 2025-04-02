@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use App\Entity\Notification;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use App\Entity\PostLike;
 use App\Entity\Post;
@@ -20,105 +21,104 @@ use Doctrine\ORM\EntityManagerInterface;
 class PostController extends AbstractController
 {
     #[Route('/api/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
-public function index(Request $request, PostRepository $postRepository): Response
-{
-    $currentUser = $this->getUser();
-    $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
+    public function index(Request $request, PostRepository $postRepository): Response
+    {
+        $currentUser = $this->getUser();
+        $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
 
-    $page = $request->query->getInt('page', 1);
-    $count = 50;
-    $offset = max(0, ($page - 1) * $count);
+        $page = $request->query->getInt('page', 1);
+        $count = 50;
+        $offset = max(0, ($page - 1) * $count);
 
-    $filter = $request->query->get('filter');
-    if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
-        /** @var \App\Entity\User $currentUser */
-        $followedUsers = $currentUser->getFollowing()->toArray();
-        $followedUserIds = array_map(fn($user) => $user->getId(), $followedUsers);
-        $paginator = $postRepository->paginatePostsByUsers($followedUserIds, $offset, $count);
-    } else {
-        $paginator = $postRepository->paginateAllOrderedByLatest($offset, $count);
-    }
-
-    $totalPostsCount = $paginator->count();
-    $previousPage = $page > 1 ? $page - 1 : null;
-    $nextPage = (($page * $count) < $totalPostsCount) ? $page + 1 : null;
-
-    $postsArray = [];
-    foreach ($paginator as $post) {
-        $author = $post->getUser();
-        if (!$author) {
-            continue;
+        $filter = $request->query->get('filter');
+        if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
+            /** @var \App\Entity\User $currentUser */
+            $followedUsers = $currentUser->getFollowing()->toArray();
+            $followedUserIds = array_map(fn($user) => $user->getId(), $followedUsers);
+            $paginator = $postRepository->paginatePostsByUsers($followedUserIds, $offset, $count);
+        } else {
+            $paginator = $postRepository->paginateAllOrderedByLatest($offset, $count);
         }
-        // Si le compte de l'auteur est privé et que l'utilisateur courant n'est ni le propriétaire ni un abonné approuvé, ignorer ce tweet
-        if ($author->getPrivate()) {
-            if (
-                !$currentUser instanceof \App\Entity\User ||
-                ($currentUser->getId() !== $author->getId() && !$currentUser->getFollowing()->contains($author))
-            ) {
+
+        $totalPostsCount = $paginator->count();
+        $previousPage = $page > 1 ? $page - 1 : null;
+        $nextPage = (($page * $count) < $totalPostsCount) ? $page + 1 : null;
+
+        $postsArray = [];
+        foreach ($paginator as $post) {
+            $author = $post->getUser();
+            if (!$author) {
                 continue;
             }
-        }
-        
-        if ($post->getCensored()) {
-            $tweetData = [
-                'id'             => $post->getId(),
-                'username'       => $author->getUsername() ?? "Unnamed",
-                'content'        => "Ce message enfreint les conditions d’utilisation de la plateforme",
-                'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                'likeCount'      => 0,
-                'liked'          => false,
-                'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
-                'media'          => [],
-                'replies'        => [],
-                'censored'       => true,
-            ];
-        } else {
-            $liked = false;
-            if ($currentUserId !== null) {
-                foreach ($post->getLikes() as $like) {
-                    if ($like->getUser()->getId() === $currentUserId) {
-                        $liked = true;
-                        break;
-                    }
+            // Si le compte de l'auteur est privé et que l'utilisateur courant n'est ni le propriétaire ni un abonné approuvé, ignorer ce tweet
+            if ($author->getPrivate()) {
+                if (
+                    !$currentUser instanceof \App\Entity\User ||
+                    ($currentUser->getId() !== $author->getId() && !$currentUser->getFollowing()->contains($author))
+                ) {
+                    continue;
                 }
             }
-            $tweetData = [
-                'id'             => $post->getId(),
-                'username'       => $author->getUsername() ?? "Unnamed",
-                'content'        => $author->getBlocked()
-                                    ? "Ce compte a été bloqué pour non respect des conditions d’utilisation"
-                                    : $post->getContent(),
-                'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                'likeCount'      => $author->getBlocked() ? 0 : $post->getLikesCount(),
-                'retweetCount'   => $post->getRetweetCount(),
-                'liked'          => $author->getBlocked() ? false : $liked,
-                'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
-                'media'          => $post->getMedia() ?: [],
-                'censored'       => false,
-            ];
-            $repliesArray = [];
-            foreach ($post->getReplies() as $reply) {
-                $repliesArray[] = [
-                    'id'             => $reply->getId(),
-                    'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
-                    'content'        => $reply->getContent(),
-                    'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
-                    'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
-                    'media'          => $reply->getMedia() ?: [],
+            
+            if ($post->getCensored()) {
+                $tweetData = [
+                    'id'             => $post->getId(),
+                    'username'       => $author->getUsername() ?? "Unnamed",
+                    'content'        => "Ce message enfreint les conditions d’utilisation de la plateforme",
+                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount'      => 0,
+                    'liked'          => false,
+                    'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
+                    'media'          => [],
+                    'replies'        => [],
+                    'censored'       => true,
                 ];
+            } else {
+                $liked = false;
+                if ($currentUserId !== null) {
+                    foreach ($post->getLikes() as $like) {
+                        if ($like->getUser()->getId() === $currentUserId) {
+                            $liked = true;
+                            break;
+                        }
+                    }
+                }
+                $tweetData = [
+                    'id'             => $post->getId(),
+                    'username'       => $author->getUsername() ?? "Unnamed",
+                    'content'        => $author->getBlocked()
+                                        ? "Ce compte a été bloqué pour non respect des conditions d’utilisation"
+                                        : $post->getContent(),
+                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount'      => $author->getBlocked() ? 0 : $post->getLikesCount(),
+                    'retweetCount'   => $post->getRetweetCount(),
+                    'liked'          => $author->getBlocked() ? false : $liked,
+                    'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
+                    'media'          => $post->getMedia() ?: [],
+                    'censored'       => false,
+                ];
+                $repliesArray = [];
+                foreach ($post->getReplies() as $reply) {
+                    $repliesArray[] = [
+                        'id'             => $reply->getId(),
+                        'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
+                        'content'        => $reply->getContent(),
+                        'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+                        'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
+                        'media'          => $reply->getMedia() ?: [],
+                    ];
+                }
+                $tweetData['replies'] = $repliesArray;
             }
-            $tweetData['replies'] = $repliesArray;
+            $postsArray[] = $tweetData;
         }
-        $postsArray[] = $tweetData;
+
+        return $this->json([
+            'posts'         => $postsArray,
+            'previous_page' => $previousPage,
+            'next_page'     => $nextPage,
+        ]);
     }
-
-    return $this->json([
-        'posts'         => $postsArray,
-        'previous_page' => $previousPage,
-        'next_page'     => $nextPage,
-    ]);
-}
-
 
     #[Route('/api/posts/{id}/like', name: 'api_post_toggle_like', methods: ['POST'])]
     public function toggleLike(Post $post, EntityManagerInterface $em): JsonResponse
@@ -138,7 +138,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
         }
         if ($user->getBlocked()) {
             return $this->json(
-                ['error' => 'Votre compte est actuellement bloqué, vous ne pouvez pas interragir avec d\'autres utilisateurs'],
+                ['error' => 'Votre compte est actuellement bloqué, vous ne pouvez pas interagir avec d\'autres utilisateurs'],
                 Response::HTTP_FORBIDDEN
             );
         }
@@ -157,6 +157,15 @@ public function index(Request $request, PostRepository $postRepository): Respons
             $em->persist($like);
             $em->flush();
             $liked = true;
+        }
+        
+        // Si le propriétaire du post n'est pas l'utilisateur courant et que c'est une action "like"
+        if ($postOwner !== $user && $liked) {
+            $notification = new Notification();
+            $notification->setContent($user->getUsername() . " a aimé votre tweet.");
+            $notification->setRecipient($postOwner);
+            $em->persist($notification);
+            $em->flush();
         }
 
         return $this->json([
@@ -284,6 +293,15 @@ public function index(Request $request, PostRepository $postRepository): Respons
         $em->persist($reply);
         $em->flush();
 
+        if ($postOwner !== $user) {
+            $notification = new Notification();
+            // Correction du message de notification pour une réponse
+            $notification->setContent($user->getUsername() . " a répondu à votre tweet.");
+            $notification->setRecipient($postOwner);
+            $em->persist($notification);
+            $em->flush();
+        }
+
         return $this->json([
             'id'             => $reply->getId(),
             'content'        => $reply->getContent(),
@@ -378,9 +396,15 @@ public function index(Request $request, PostRepository $postRepository): Respons
                 'createdAt' => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
             ];
         }
-
+        $originalOwner = $post->getUser();
+        if ($originalOwner !== $user) {
+            $notification = new Notification();
+            $notification->setContent($user->getUsername() . " a retweeté votre tweet.");
+            $notification->setRecipient($originalOwner);
+            $em->persist($notification);
+        }
         $em->flush();
-
+        
         return $this->json([
             'message' => 'Tweet retweeté avec succès.',
             'retweet' => [

@@ -248,10 +248,17 @@ class ProfileController extends AbstractController
                     'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
                 ]);
             } else {
-                // Sinon, si aucune demande n'est en attente, ajouter le demandeur dans pending
+                // Sinon, si aucune demande n'est en attente, ajouter le demandeur dans pending et notifier le propriétaire du compte
                 if (!$targetUser->getPendingFollowRequests()->contains($currentUser)) {
                     $targetUser->addPendingFollowRequest($currentUser);
                     $em->flush();
+
+                    $notification = new Notification();
+                    $notification->setContent($currentUser->getUsername() . " a envoyé une demande de suivi.");
+                    $notification->setRecipient($targetUser);
+                    $em->persist($notification);
+                    $em->flush();
+
                     return $this->json([
                         'message' => 'Demande de suivi envoyée. En attente d\'approbation.'
                     ], JsonResponse::HTTP_OK);
@@ -262,7 +269,7 @@ class ProfileController extends AbstractController
                 }
             }
         }
-        // Si le compte n'est pas privé, établir directement la relation de suivi
+        // Pour un compte public, établir directement la relation de suivi
         $action = "";
         if ($currentUser->getFollowing()->contains($targetUser)) {
             $currentUser->unfollow($targetUser);
@@ -272,6 +279,16 @@ class ProfileController extends AbstractController
             $action = 'followed';
         }
         $em->flush();
+        
+        // Envoi de notification en cas de suivi effectif
+        if ($action === 'followed' && $currentUser !== $targetUser) {
+            $notification = new Notification();
+            $notification->setContent($currentUser->getUsername() . " a commencé à vous suivre.");
+            $notification->setRecipient($targetUser);
+            $em->persist($notification);
+            $em->flush();
+        }
+        
         return $this->json([
             'message' => 'Action effectuée: ' . $action,
             'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
@@ -314,12 +331,14 @@ class ProfileController extends AbstractController
         // Supprimer la demande pending et établir la relation de suivi
         $currentUser->removePendingFollowRequest($follower);
         $follower->follow($currentUser);
+
         // Créer une notification pour informer le demandeur
         $notification = new Notification();
         $notification->setContent("Votre demande de suivi a été ACCEPTÉE par " . $currentUser->getUsername() . ".");
         $notification->setRecipient($follower);
         $em->persist($notification);
         $em->flush();
+
         return $this->json(['message' => 'Demande de suivi acceptée.']);
     }
 
@@ -339,12 +358,14 @@ class ProfileController extends AbstractController
             return $this->json(['error' => 'Aucune demande de suivi de cet utilisateur.'], JsonResponse::HTTP_BAD_REQUEST);
         }
         $currentUser->removePendingFollowRequest($follower);
+
         // Créer une notification pour informer le demandeur
         $notification = new Notification();
         $notification->setContent("Votre demande de suivi a été REFUSÉE par " . $currentUser->getUsername() . ".");
         $notification->setRecipient($follower);
         $em->persist($notification);
         $em->flush();
+
         return $this->json(['message' => 'Demande de suivi refusée.']);
     }
 
@@ -486,7 +507,7 @@ class ProfileController extends AbstractController
             return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         
-        // Récupérer les notifications pour l'utilisateur connecté, triées par date décroissante
+        // Récupérer les notifications du destinataire, triées par date décroissante
         $notifications = $notificationRepository->findBy(['recipient' => $user], ['createdAt' => 'DESC']);
         
         $data = [];
@@ -500,5 +521,23 @@ class ProfileController extends AbstractController
         }
         
         return $this->json(['notifications' => $data]);
+    }
+
+    #[Route('/api/notifications/read', name: 'api_notifications_mark_read', methods: ['PUT'])]
+    public function markAllAsRead(NotificationRepository $notificationRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        
+        // Marquer comme lues toutes les notifications non lues pour l'utilisateur connecté
+        $notifications = $notificationRepository->findBy(['recipient' => $user, 'isRead' => false]);
+        foreach ($notifications as $notification) {
+            $notification->setIsRead(true);
+        }
+        $em->flush();
+        
+        return $this->json(['message' => 'Notifications marquées comme lues.']);
     }
 }

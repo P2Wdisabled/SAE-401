@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import Tweet from "../ui/tweet";
 import Button from "../ui/Button";
 
@@ -13,8 +13,8 @@ const Profile: React.FC = () => {
   const [followError, setFollowError] = useState<string>("");
   const [blockError, setBlockError] = useState<string>("");
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
-  const [showPendingPopup, setShowPendingPopup] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [showPendingPopup, setShowPendingPopup] = useState<boolean>(false);
   const [showNotificationsPopup, setShowNotificationsPopup] = useState<boolean>(false);
 
   const navigate = useNavigate();
@@ -49,12 +49,8 @@ const Profile: React.FC = () => {
         setTweets(data.tweets);
         setFollowing(data.profile.followed);
       })
-      .catch((err) => {
-        console.error(err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   }, [username, navigate]);
 
   const fetchPendingRequests = useCallback(() => {
@@ -68,9 +64,7 @@ const Profile: React.FC = () => {
       },
     })
       .then((res) => res.json())
-      .then((data) => {
-        setPendingRequests(data.pendingFollowRequests || []);
-      })
+      .then((data) => setPendingRequests(data.pendingFollowRequests || []))
       .catch((err) => console.error(err));
   }, []);
 
@@ -85,9 +79,7 @@ const Profile: React.FC = () => {
       },
     })
       .then((res) => res.json())
-      .then((data) => {
-        setNotifications(data.notifications || []);
-      })
+      .then((data) => setNotifications(data.notifications || []))
       .catch((err) => console.error(err));
   }, []);
 
@@ -95,7 +87,7 @@ const Profile: React.FC = () => {
     fetchProfile();
   }, [fetchProfile]);
 
-  // Si le profil appartient à l'utilisateur connecté, récupérer les demandes pending et notifications
+  // Si le profil appartient à l'utilisateur connecté, récupérer demandes pending et notifications
   useEffect(() => {
     if (profile && profile.editable) {
       fetchPendingRequests();
@@ -103,16 +95,42 @@ const Profile: React.FC = () => {
     }
   }, [profile, fetchPendingRequests, fetchNotifications]);
 
+  // Calculer le nombre total d'éléments non lus : notifications non lues + nombre de demandes pending
+  const unreadCount =
+    notifications.filter((notif: any) => !notif.isRead).length +
+    pendingRequests.length;
+
+  // Lorsque le popup de notifications s'ouvre, marquer toutes les notifications comme lues
+  useEffect(() => {
+    if (showNotificationsPopup) {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      fetch("http://localhost:8080/api/notifications/read", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
+        },
+      })
+        .then((res) => res.json())
+        .then(() => fetchNotifications())
+        .catch((err) => console.error(err));
+    }
+  }, [showNotificationsPopup, fetchNotifications]);
+
   const handleAcceptRequest = async (followerUsername: string) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`http://localhost:8080/api/profile/pending/${followerUsername}/accept`, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/profile/pending/${followerUsername}/accept`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       const data = await response.json();
       if (!response.ok) {
         alert(data.error || "Erreur lors de l'acceptation de la demande");
@@ -130,13 +148,16 @@ const Profile: React.FC = () => {
   const handleDeclineRequest = async (followerUsername: string) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`http://localhost:8080/api/profile/pending/${followerUsername}/decline`, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/profile/pending/${followerUsername}/decline`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       const data = await response.json();
       if (!response.ok) {
         alert(data.error || "Erreur lors du refus de la demande");
@@ -154,13 +175,16 @@ const Profile: React.FC = () => {
   const handlePinTweet = async (tweetId: number) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`http://localhost:8080/api/profile/${username}/pin/${tweetId}`, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/profile/${username}/pin/${tweetId}`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       const data = await response.json();
       if (!response.ok) {
         alert(data.error || "Erreur lors de l'épinglage du tweet");
@@ -176,13 +200,16 @@ const Profile: React.FC = () => {
   const handleUnpinTweet = async () => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`http://localhost:8080/api/profile/${username}/unpin`, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/profile/${username}/unpin`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       const data = await response.json();
       if (!response.ok) {
         alert(data.error || "Erreur lors du désépinglage du tweet");
@@ -198,13 +225,16 @@ const Profile: React.FC = () => {
   const toggleFollow = async () => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`http://localhost:8080/api/profile/${username}/follow`, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/profile/${username}/follow`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       const data = await response.json();
       if (!response.ok) {
         setFollowError(data.error || "Erreur lors du follow/unfollow");
@@ -225,13 +255,16 @@ const Profile: React.FC = () => {
   const toggleBlock = async () => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`http://localhost:8080/api/profile/${username}/block`, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/profile/${username}/block`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       const data = await response.json();
       if (!response.ok) {
         setBlockError(data.error || "Erreur lors du blocage/déblocage");
@@ -245,7 +278,7 @@ const Profile: React.FC = () => {
   };
 
   const handleDeleteTweet = (tweetId: number) => {
-    setTweets((prevTweets) => prevTweets.filter((tweet) => tweet.id !== tweetId));
+    setTweets((prev) => prev.filter((tweet) => tweet.id !== tweetId));
   };
 
   if (loading) {
@@ -269,72 +302,57 @@ const Profile: React.FC = () => {
           alt="Photo de profil"
           className="absolute bottom-0 left-4 w-24 h-24 rounded-full border-4 border-white transform translate-y-1/2"
         />
-        {/* Icône cloche pour les demandes en attente */}
-        {profile.editable && pendingRequests.length > 0 && (
-          <button
-            onClick={() => setShowPendingPopup(!showPendingPopup)}
-            className="absolute top-4 right-16 text-white"
-            title="Demandes de suivi en attente"
-          >
-            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C10.346 2 9 3.346 9 5v1.07C6.165 7.185 4 10.044 4 13v5l-1 1v1h18v-1l-1-1v-5c0-2.956-2.165-5.815-5-6.93V5c0-1.654-1.346-3-3-3zM12 22c1.103 0 2-.897 2-2h-4c0 1.103.897 2 2 2z"/>
-            </svg>
-          </button>
-        )}
-        {/* Icône cloche pour les notifications, positionnée encore plus à droite hors de la bannière */}
-        {profile.editable && notifications.length > 0 && (
+        {/* Icône combinée : demandes de suivi et notifications */}
+        {profile.editable && (
           <button
             onClick={() => setShowNotificationsPopup(!showNotificationsPopup)}
             className="absolute top-4"
             style={{ right: "-40px" }}
-            title="Notifications"
+            title="Notifications et demandes de suivi"
           >
             <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
               <path d="M12 22c1.104 0 2-.897 2-2H10c0 1.103.896 2 2 2zm6-6V11c0-3.309-2.691-6-6-6S6 7.691 6 11v5l-2 2v1h16v-1l-2-2zm-2 .001H8V11c0-2.206 1.794-4 4-4s4 1.794 4 4v5z" />
             </svg>
+            {unreadCount > 0 && (
+              <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                {unreadCount}
+              </span>
+            )}
           </button>
         )}
-        {showPendingPopup && (
-          <div className="absolute top-12 right-16 bg-white text-black p-4 rounded shadow-lg z-50">
-            <h3 className="font-bold mb-2">Demandes de suivi</h3>
-            {pendingRequests.length === 0 ? (
-              <p>Aucune demande en attente.</p>
-            ) : (
-              pendingRequests.map((req: any) => (
-                <div key={req.username} className="flex items-center gap-2 mb-2">
-                  <img
-                    src={req.profilePicture}
-                    alt={req.username}
-                    className="w-8 h-8 rounded-full"
-                  />
-                  <span className="flex-1 text-sm">
-                    <strong>{req.username}</strong> souhaite s'abonner à vous !
-                  </span>
-                  <div className="flex gap-1">
-                    <Button
-                      text="Accepter"
-                      onClick={() => handleAcceptRequest(req.username)}
-                      moreClasses="bg-green-500 text-white px-2 py-1 rounded text-sm"
-                    />
-                    <Button
-                      text="Refuser"
-                      onClick={() => handleDeclineRequest(req.username)}
-                      moreClasses="bg-red-500 text-white px-2 py-1 rounded text-sm"
-                    />
-                  </div>
-                </div>
-              ))
-            )}
-            <button
-              className="mt-2 text-blue-500 underline text-sm"
-              onClick={() => setShowPendingPopup(false)}
-            >
-              Fermer
-            </button>
-          </div>
-        )}
+        {/* Popup combiné : notifications et demandes de suivi */}
         {showNotificationsPopup && (
           <div className="absolute top-12 right-0 bg-white text-black p-4 rounded shadow-lg z-50 max-h-80 overflow-y-auto">
+            {pendingRequests.length > 0 && (
+              <>
+                <h3 className="font-bold mb-2">Demandes de suivi</h3>
+                {pendingRequests.map((req: any) => (
+                  <div key={req.username} className="flex items-center gap-2 mb-2">
+                    <img
+                      src={req.profilePicture}
+                      alt={req.username}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span className="flex-1 text-sm">
+                      <strong>{req.username}</strong> souhaite s'abonner à vous !
+                    </span>
+                    <div className="flex gap-1">
+                      <Button
+                        text="Accepter"
+                        onClick={() => handleAcceptRequest(req.username)}
+                        moreClasses="bg-green-500 text-white px-2 py-1 rounded text-sm"
+                      />
+                      <Button
+                        text="Refuser"
+                        onClick={() => handleDeclineRequest(req.username)}
+                        moreClasses="bg-red-500 text-white px-2 py-1 rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                ))}
+                <hr className="my-2" />
+              </>
+            )}
             <h3 className="font-bold mb-2">Notifications</h3>
             {notifications.length === 0 ? (
               <p>Aucune notification.</p>
@@ -343,7 +361,9 @@ const Profile: React.FC = () => {
                 <div key={notif.id} className="mb-2 text-sm">
                   <span>{notif.content}</span>
                   <br />
-                  <span className="text-gray-500">{new Date(notif.createdAt).toLocaleString()}</span>
+                  <span className="text-gray-500">
+                    {new Date(notif.createdAt).toLocaleString()}
+                  </span>
                 </div>
               ))
             )}
@@ -397,7 +417,9 @@ const Profile: React.FC = () => {
                   moreClasses="bg-blue-500 text-white px-4 py-2 rounded"
                 />
                 {followError && (
-                  <p className="text-red-500 text-sm mt-1 absolute w-96">{followError}</p>
+                  <p className="text-red-500 text-sm mt-1 absolute w-96">
+                    {followError}
+                  </p>
                 )}
               </div>
               <div>
@@ -416,7 +438,9 @@ const Profile: React.FC = () => {
       </div>
       {profile.private && !profile.editable && !following ? (
         <div className="mt-4 px-4">
-          <p className="text-white">Ce compte est privé. Envoyez une demande de suivi pour voir les tweets.</p>
+          <p className="text-white">
+            Ce compte est privé. Envoyez une demande de suivi pour voir les tweets.
+          </p>
         </div>
       ) : (
         <>
@@ -431,9 +455,9 @@ const Profile: React.FC = () => {
                   profilePicture={profile.profilePicture || "default-profile.png"}
                   initialLikeCount={pinnedTweet.likeCount || 0}
                   initialRetweetCount={pinnedTweet.retweetCount || 0}
-                  initialLiked={pinnedTweet.liked || false}
+                  initialLiked={pinnedTweet.liked}
                   media={pinnedTweet.media}
-                  replies={[]} 
+                  replies={[]}
                   isOwner={profile.editable}
                   censored={pinnedTweet.censored}
                 />

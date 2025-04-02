@@ -31,22 +31,14 @@ function TweetList({ activeTab }: TweetListProps) {
       navigate("/landing");
       return;
     }
-    let url = activeTab === "abonnements" 
-      ? `http://localhost:8080/api/posts?filter=following&page=${pageNum}` 
+    let url = activeTab === "abonnements"
+      ? `http://localhost:8080/api/posts?filter=following&page=${pageNum}`
       : `http://localhost:8080/api/posts?page=${pageNum}`;
     
-    if (searchText) {
-      url += `&search=${encodeURIComponent(searchText)}`;
-    }
-    if (filterDate) {
-      url += `&date=${encodeURIComponent(filterDate)}`;
-    }
-    if (filterType) {
-      url += `&type=${encodeURIComponent(filterType)}`;
-    }
-    if (filterUser) {
-      url += `&user=${encodeURIComponent(filterUser)}`;
-    }
+    if (searchText) url += `&search=${encodeURIComponent(searchText)}`;
+    if (filterDate) url += `&date=${encodeURIComponent(filterDate)}`;
+    if (filterType) url += `&type=${encodeURIComponent(filterType)}`;
+    if (filterUser) url += `&user=${encodeURIComponent(filterUser)}`;
     
     fetch(url, {
       method: "GET",
@@ -68,22 +60,15 @@ function TweetList({ activeTab }: TweetListProps) {
       .then((data) => {
         setError("");
         const newPosts = data.posts;
-        if (pageNum === 0) {
-          setPosts(newPosts);
-        } else {
-          setPosts((prevPosts) => [...prevPosts, ...newPosts]);
-        }
-        if (newPosts.length < 50) {
-          setHasMore(false);
-        }
+        if (pageNum === 0) setPosts(newPosts);
+        else setPosts((prevPosts) => [...prevPosts, ...newPosts]);
+        if (newPosts.length < 50) setHasMore(false);
       })
       .catch((err) => {
         console.error(err);
         setError(err.message || "Erreur lors du chargement des posts.");
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
   };
 
   const refreshPosts = () => {
@@ -99,18 +84,10 @@ function TweetList({ activeTab }: TweetListProps) {
     let url = activeTab === "abonnements"
       ? `http://localhost:8080/api/posts?filter=following&page=0`
       : `http://localhost:8080/api/posts?page=0`;
-    if (searchText) {
-      url += `&search=${encodeURIComponent(searchText)}`;
-    }
-    if (filterDate) {
-      url += `&date=${encodeURIComponent(filterDate)}`;
-    }
-    if (filterType) {
-      url += `&type=${encodeURIComponent(filterType)}`;
-    }
-    if (filterUser) {
-      url += `&user=${encodeURIComponent(filterUser)}`;
-    }
+    if (searchText) url += `&search=${encodeURIComponent(searchText)}`;
+    if (filterDate) url += `&date=${encodeURIComponent(filterDate)}`;
+    if (filterType) url += `&type=${encodeURIComponent(filterType)}`;
+    if (filterUser) url += `&user=${encodeURIComponent(filterUser)}`;
     
     fetch(url, {
       method: "GET",
@@ -133,9 +110,7 @@ function TweetList({ activeTab }: TweetListProps) {
         setError("");
         const newPosts = data.posts;
         setPosts(newPosts);
-        if (newPosts.length < 50) {
-          setHasMore(false);
-        }
+        if (newPosts.length < 50) setHasMore(false);
       })
       .catch((err) => {
         console.error(err);
@@ -145,9 +120,7 @@ function TweetList({ activeTab }: TweetListProps) {
         const elapsed = Date.now() - startTime;
         const minDuration = 2000;
         const delay = Math.max(0, minDuration - elapsed);
-        setTimeout(() => {
-          setLoading(false);
-        }, delay);
+        setTimeout(() => setLoading(false), delay);
       });
   };
 
@@ -159,9 +132,7 @@ function TweetList({ activeTab }: TweetListProps) {
   }, [activeTab, searchText, filterDate, filterType, filterUser]);
 
   useEffect(() => {
-    if (page > 0) {
-      fetchPosts(page);
-    }
+    if (page > 0) fetchPosts(page);
   }, [page]);
 
   useEffect(() => {
@@ -179,9 +150,7 @@ function TweetList({ activeTab }: TweetListProps) {
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
     if (autoRefreshEnabled) {
-      interval = setInterval(() => {
-        refreshPosts();
-      }, refreshInterval * 1000);
+      interval = setInterval(() => refreshPosts(), refreshInterval * 1000);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -189,8 +158,15 @@ function TweetList({ activeTab }: TweetListProps) {
   }, [autoRefreshEnabled, refreshInterval, activeTab, searchText, filterDate, filterType, filterUser]);
 
   const handleDelete = (tweetId: number) => {
-    setPosts((prevPosts) => prevPosts.filter((post) => post.id !== tweetId));
+    setPosts((prev) => prev.filter((tweet) => tweet.id !== tweetId));
   };
+
+  if (loading) {
+    return <div className="text-center mt-4">Chargement...</div>;
+  }
+  if (!error && posts.length === 0) {
+    return <div className="text-center mt-4">Aucun tweet à afficher.</div>;
+  }
 
   return (
     <main className="px-4 pb-16">
@@ -209,7 +185,7 @@ function TweetList({ activeTab }: TweetListProps) {
             type="date"
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
-            className="p-2 rounded text-white fill-white "
+            className="p-2 rounded text-white fill-white"
           />
           <select
             value={filterType}

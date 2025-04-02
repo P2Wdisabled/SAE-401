@@ -10,13 +10,12 @@ type TweetProps = {
   initialRetweetCount: number;
   initialLiked: boolean;
   isOwner: boolean;
-  censored?: boolean; // Indique si le tweet est censuré
-  media?: string[];   // URLs des médias associés
-  replies?: any[];    // Réponses au tweet
+  censored?: boolean;
+  media?: string[];
+  replies?: any[];
   onDelete?: () => void;
 };
 
-// Fonction pour analyser et transformer le texte en incluant hashtags et mentions
 const parseContent = (text: string): React.ReactNode[] => {
   const regex = /(\B#[a-zA-Z0-9_]+)|(\B@[a-zA-Z0-9_]+)/g;
   const parts = text.split(regex);
@@ -69,7 +68,6 @@ const Tweet: React.FC<TweetProps> = ({
   const [actionError, setActionError] = useState<string>("");
   const navigate = useNavigate();
 
-  // Fonction pour toggler le like
   const toggleLike = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -95,10 +93,8 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
-  // Fonction pour retweeter
   const handleRetweet = async () => {
     const token = localStorage.getItem("token");
-    // Optionnellement, demander un commentaire au retweet
     const comment = window.prompt("Ajouter un commentaire (optionnel) pour retweeter :");
     try {
       const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/retweet`, {
@@ -115,7 +111,6 @@ const Tweet: React.FC<TweetProps> = ({
         return;
       }
       const data = await response.json();
-      // Mettre à jour le compteur de retweets avec la valeur renvoyée par l'API
       if (data.retweet && data.retweet.retweetCount !== undefined) {
         setRetweetCount(data.retweet.retweetCount);
       }
@@ -127,11 +122,8 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
-  // Fonction pour supprimer le tweet
   const handleDelete = async () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce tweet ?")) {
-      return;
-    }
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce tweet ?")) return;
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(`http://localhost:8080/api/posts/${tweetId}`, {
@@ -145,9 +137,7 @@ const Tweet: React.FC<TweetProps> = ({
         setActionError(data.error || "Erreur lors de la suppression du tweet");
         return;
       }
-      if (onDelete) {
-        onDelete();
-      }
+      if (onDelete) onDelete();
       setActionError("");
     } catch (error) {
       console.error("Erreur lors de la suppression du tweet", error);
@@ -155,7 +145,6 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
-  // Fonction pour sauvegarder les modifications d'édition
   const handleEditSave = async () => {
     const token = localStorage.getItem("token");
     let uploadedMediaUrls: string[] = [];
@@ -189,10 +178,7 @@ const Tweet: React.FC<TweetProps> = ({
           "Content-Type": "application/json",
           "Authorization": "Bearer " + token,
         },
-        body: JSON.stringify({
-          content: editContent,
-          media: updatedMedia,
-        }),
+        body: JSON.stringify({ content: editContent, media: updatedMedia }),
       });
       if (!response.ok) {
         const data = await response.json();
@@ -209,7 +195,6 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
-  // Annuler l'édition
   const handleCancelEdit = () => {
     setEditContent(content);
     setEditMedia(media);
@@ -218,7 +203,6 @@ const Tweet: React.FC<TweetProps> = ({
     setActionError("");
   };
 
-  // Gestion du changement de nouveaux fichiers médias
   const handleNewMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
@@ -226,17 +210,14 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
-  // Supprimer un média existant lors de l'édition
   const removeExistingMedia = (url: string) => {
     setEditMedia((prev) => prev.filter((mediaUrl) => mediaUrl !== url));
   };
 
-  // Supprimer un nouveau média (non encore uploadé)
   const removeNewMedia = (file: File) => {
     setNewMediaFiles((prev) => prev.filter((f) => f !== file));
   };
 
-  // Envoi d'une réponse
   const handleReplySubmit = async () => {
     if (replyContent.trim() === "") return;
     const token = localStorage.getItem("token");
@@ -247,10 +228,7 @@ const Tweet: React.FC<TweetProps> = ({
           "Content-Type": "application/json",
           "Authorization": "Bearer " + token,
         },
-        body: JSON.stringify({
-          content: replyContent,
-          media: [],
-        }),
+        body: JSON.stringify({ content: replyContent, media: [] }),
       });
       if (!response.ok) {
         const data = await response.json();
@@ -387,14 +365,12 @@ const Tweet: React.FC<TweetProps> = ({
                 Supprimer
               </button>
             )}
-            {/* Bouton Retweet avec compteur */}
             <div onClick={handleRetweet} className="flex items-center gap-1 cursor-pointer">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M23 7l-3-3v2H3v2h17v2l3-3zm-3 10H3v-2h17v-2l3 3-3 3v-2z" fill="currentColor"/>
               </svg>
               <span className="text-white">{retweetCount}</span>
             </div>
-            {/* Bouton pour afficher/masquer la zone de réponse */}
             <button
               onClick={() => setShowReplyForm((prev) => !prev)}
               className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
