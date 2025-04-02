@@ -17,10 +17,9 @@ function TweetList({ activeTab }: TweetListProps) {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const refreshInterval = 30; // secondes
 
-  // États pour les filtres
   const [searchText, setSearchText] = useState("");
   const [filterDate, setFilterDate] = useState("");
-  const [filterType, setFilterType] = useState(""); // "text" ou "media"
+  const [filterType, setFilterType] = useState("");
   const [filterUser, setFilterUser] = useState("");
 
   const fetchPosts = (pageNum: number) => {
@@ -253,6 +252,7 @@ function TweetList({ activeTab }: TweetListProps) {
           replies={post.replies}
           isOwner={post.editable}
           censored={post.censored}
+          locked={post.locked}
           onDelete={() => handleDelete(post.id)}
         />
       ))}

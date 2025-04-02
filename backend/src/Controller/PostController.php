@@ -50,7 +50,7 @@ class PostController extends AbstractController
             if (!$author) {
                 continue;
             }
-            // Si le compte de l'auteur est privé et que l'utilisateur courant n'est ni le propriétaire ni un abonné approuvé, ignorer ce tweet
+            // Vérification du compte privé
             if ($author->getPrivate()) {
                 if (
                     !$currentUser instanceof \App\Entity\User ||
@@ -72,6 +72,7 @@ class PostController extends AbstractController
                     'media'          => [],
                     'replies'        => [],
                     'censored'       => true,
+                    'locked'         => $post->isLocked(),
                 ];
             } else {
                 $liked = false;
@@ -96,19 +97,25 @@ class PostController extends AbstractController
                     'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
                     'media'          => $post->getMedia() ?: [],
                     'censored'       => false,
+                    'locked'         => $post->isLocked(),
                 ];
-                $repliesArray = [];
-                foreach ($post->getReplies() as $reply) {
-                    $repliesArray[] = [
-                        'id'             => $reply->getId(),
-                        'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
-                        'content'        => $reply->getContent(),
-                        'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
-                        'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
-                        'media'          => $reply->getMedia() ?: [],
-                    ];
+                if ($post->isLocked()) {
+                    // Si le tweet est verrouillé, ne pas renvoyer les réponses
+                    $tweetData['replies'] = [];
+                } else {
+                    $repliesArray = [];
+                    foreach ($post->getReplies() as $reply) {
+                        $repliesArray[] = [
+                            'id'             => $reply->getId(),
+                            'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
+                            'content'        => $reply->getContent(),
+                            'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+                            'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
+                            'media'          => $reply->getMedia() ?: [],
+                        ];
+                    }
+                    $tweetData['replies'] = $repliesArray;
                 }
-                $tweetData['replies'] = $repliesArray;
             }
             $postsArray[] = $tweetData;
         }
@@ -159,7 +166,6 @@ class PostController extends AbstractController
             $liked = true;
         }
         
-        // Si le propriétaire du post n'est pas l'utilisateur courant et que c'est une action "like"
         if ($postOwner !== $user && $liked) {
             $notification = new Notification();
             $notification->setContent($user->getUsername() . " a aimé votre tweet.");
@@ -194,6 +200,8 @@ class PostController extends AbstractController
         $data = json_decode($request->getContent(), true);
         $content = $data['content'] ?? null;
         $media = $data['media'] ?? [];
+        // Récupération de l'option de verrouillage
+        $locked = $data['locked'] ?? false;
 
         if (!$content || trim($content) === '') {
             return $this->json(['error' => 'Le contenu du post ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
@@ -202,6 +210,7 @@ class PostController extends AbstractController
         $payload = new CreatePostPayload();
         $payload->setContent($content);
         $payload->setMedia($media);
+        $payload->setLocked($locked); // <-- Nouveau champ dans le payload
 
         $errors = $validator->validate($payload);
         if (count($errors) > 0) {
@@ -214,12 +223,9 @@ class PostController extends AbstractController
 
         $postService->create($payload, $user);
 
-        // Détection des mentions sous la forme "@{username}"
         if (preg_match_all('/@([a-zA-Z0-9_]+)/', $content, $matches)) {
             foreach ($matches[1] as $mentionedUsername) {
-                // Rechercher l'utilisateur mentionné
                 $mentionedUser = $userRepository->findOneBy(['username' => $mentionedUsername]);
-                // Envoyer la notification si l'utilisateur existe et n'est pas l'expéditeur
                 if ($mentionedUser && $mentionedUser !== $user) {
                     $notification = new Notification();
                     $notification->setContent($user->getUsername() . " vous a mentionné dans un tweet.");
@@ -313,7 +319,6 @@ class PostController extends AbstractController
 
         if ($postOwner !== $user) {
             $notification = new Notification();
-            // Correction du message de notification pour une réponse
             $notification->setContent($user->getUsername() . " a répondu à votre tweet.");
             $notification->setRecipient($postOwner);
             $em->persist($notification);
@@ -381,7 +386,6 @@ class PostController extends AbstractController
             return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
         }
 
-        // Vérifier si le tweet original provient d'un compte privé
         if ($post->getUser()->getPrivate()) {
             return $this->json(['error' => "Les contenus d'un compte privé ne peuvent pas être retweetés."], Response::HTTP_FORBIDDEN);
         }
@@ -436,4 +440,44 @@ class PostController extends AbstractController
             ]
         ], Response::HTTP_CREATED);
     }
+    
+    // *************** Nouvelle route pour verrouiller un tweet ****************
+    #[Route('/api/posts/{id}/lock', name: 'api_post_lock', methods: ['POST'])]
+    public function lock(Post $post, EntityManagerInterface $em): JsonResponse
+    {
+        /** @var \App\Entity\User $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+        }
+        if ($post->getUser()->getId() !== $user->getId()) {
+            return $this->json(['error' => 'Vous n\'êtes pas autorisé à verrouiller ce post.'], Response::HTTP_FORBIDDEN);
+        }
+        if ($post->isLocked()) {
+            return $this->json(['message' => 'Le post est déjà verrouillé.'], Response::HTTP_BAD_REQUEST);
+        }
+        $post->setLocked(true);
+        $em->flush();
+        return $this->json(['message' => 'Post verrouillé avec succès.', 'locked' => true], Response::HTTP_OK);
+    }
+
+    #[Route('/api/posts/{id}/unlock', name: 'api_post_unlock', methods: ['POST'])]
+    public function unlock(Post $post, EntityManagerInterface $em): JsonResponse
+    {
+        /** @var \App\Entity\User $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+        }
+        if ($post->getUser()->getId() !== $user->getId()) {
+            return $this->json(['error' => 'Vous n\'êtes pas autorisé à déverrouiller ce post.'], Response::HTTP_FORBIDDEN);
+        }
+        if (!$post->isLocked()) {
+            return $this->json(['message' => 'Le post est déjà déverrouillé.'], Response::HTTP_BAD_REQUEST);
+        }
+        $post->setLocked(false);
+        $em->flush();
+        return $this->json(['message' => 'Post déverrouillé avec succès.', 'locked' => false], Response::HTTP_OK);
+    }
+    // *************************************************************************
 }

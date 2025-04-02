@@ -57,6 +57,11 @@ class Post
     #[Groups(['post:read'])]
     private bool $isRetweet = false;
 
+    
+    #[ORM\Column(type: "boolean")]
+    #[Groups(['post:read'])]
+    private bool $locked = false;
+
     #[ORM\Column(type: "string", length: 280, nullable: true)]
     #[Groups(['post:read'])]
     private ?string $retweetComment = null;
@@ -64,6 +69,16 @@ class Post
     public function __construct() {
         $this->likes = new ArrayCollection();
         $this->replies = new ArrayCollection();
+    }
+
+    
+    public function isLocked(): bool {
+        return $this->locked;
+    }
+
+    public function setLocked(bool $locked): self {
+        $this->locked = $locked;
+        return $this;
     }
 
     public function getRetweetCount(): int {

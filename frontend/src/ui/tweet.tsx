@@ -13,6 +13,7 @@ type TweetProps = {
   censored?: boolean;
   media?: string[];
   replies?: any[];
+  locked?: boolean;
   onDelete?: () => void;
 };
 
@@ -53,6 +54,7 @@ const Tweet: React.FC<TweetProps> = ({
   media = [],
   replies = [],
   isOwner,
+  locked = false,
   onDelete,
 }) => {
   const [liked, setLiked] = useState<boolean>(initialLiked);
@@ -66,6 +68,7 @@ const Tweet: React.FC<TweetProps> = ({
   const [replyContent, setReplyContent] = useState<string>("");
   const [localReplies, setLocalReplies] = useState<any[]>(replies);
   const [actionError, setActionError] = useState<string>("");
+  const [isLocked, setIsLocked] = useState<boolean>(locked);
   const navigate = useNavigate();
 
   const toggleLike = async () => {
@@ -246,6 +249,52 @@ const Tweet: React.FC<TweetProps> = ({
     }
   };
 
+  const handleLock = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/lock`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+        },
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        setActionError(data.error || "Erreur lors du verrouillage");
+        return;
+      }
+      const data = await response.json();
+      setIsLocked(true);
+      setActionError("");
+    } catch (error) {
+      console.error("Erreur lors du verrouillage", error);
+      setActionError("Erreur lors du verrouillage");
+    }
+  };
+
+  const handleUnlock = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/unlock`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+        },
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        setActionError(data.error || "Erreur lors du déverrouillage");
+        return;
+      }
+      const data = await response.json();
+      setIsLocked(false);
+      setActionError("");
+    } catch (error) {
+      console.error("Erreur lors du déverrouillage", error);
+      setActionError("Erreur lors du déverrouillage");
+    }
+  };
+
   return (
     <article className="flex flex-col gap-2 py-3 border-b border-gray-600">
       <div className="flex items-start gap-3">
@@ -259,6 +308,9 @@ const Tweet: React.FC<TweetProps> = ({
           {!isEditing ? (
             <>
               <p className={`text-gray-300 ${censored ? "italic" : ""}`}>{parseContent(content)}</p>
+              {isLocked && (
+                <p className="text-red-400 text-sm">Les réponses sont verrouillées.</p>
+              )}
               {!censored && media && media.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {media.map((url, index) =>
@@ -378,8 +430,19 @@ const Tweet: React.FC<TweetProps> = ({
             >
               💬
             </button>
+            {isOwner && (
+              isLocked ? (
+                <button onClick={handleUnlock} className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition">
+                  Déverrouiller
+                </button>
+              ) : (
+                <button onClick={handleLock} className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition">
+                  Verrouiller
+                </button>
+              )
+            )}
           </div>
-          {showReplyForm && (
+          {showReplyForm && !isLocked && (
             <div className="mt-2">
               <textarea
                 className="w-full bg-gray-800 text-white outline-none resize-none p-2"
@@ -398,7 +461,7 @@ const Tweet: React.FC<TweetProps> = ({
             </div>
           )}
           {actionError && <p className="text-red-500 mt-2">{actionError}</p>}
-          {localReplies.length > 0 && (
+          {localReplies.length > 0 && !isLocked && (
             <div className="mt-4 pl-8 border-l border-gray-600">
               {localReplies.map((reply, index) => (
                 <div key={reply.id || index} className="mb-2">

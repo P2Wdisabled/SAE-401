@@ -2,6 +2,7 @@
 
 namespace App\Dto\Payload;
 
+use phpDocumentor\Reflection\Types\Boolean;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class CreatePostPayload
@@ -15,6 +16,7 @@ class CreatePostPayload
      */
     private ?string $content = null;
     private ?array $media = [];
+    private ?bool $locked = false;
 
     public function getContent(): ?string
     {
@@ -34,6 +36,16 @@ class CreatePostPayload
 
     public function setMedia(?array $media): self {
         $this->media = $media;
+        return $this;
+    }
+    
+    public function getLocked(?bool $locked): self {
+        $this->locked = $locked;
+        return $this;
+    }
+
+    public function setLocked(?bool $locked): self {
+        $this->locked = $locked;
         return $this;
     }
 }
