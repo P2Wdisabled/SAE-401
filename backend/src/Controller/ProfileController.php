@@ -15,9 +15,6 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class ProfileController extends AbstractController
 {
-    // Endpoint pour afficher le profil complet
-    
-
     #[Route('/profile/{username}', name: 'profile_show', methods: ['GET'])]
     public function show(
         string $username,
@@ -35,8 +32,32 @@ class ProfileController extends AbstractController
         if ($currentUser && $currentUser instanceof User) {
             $isOwner = $currentUser->getId() === $user->getId();
             if (!$isOwner) {
+                // Vérifier si le suivi a été approuvé
                 $isFollowed = $currentUser->getFollowing()->contains($user);
             }
+        }
+        
+        // Si le compte est privé et que l'utilisateur n'est ni le propriétaire ni un abonné approuvé, ne pas renvoyer les tweets.
+        if ($user->getPrivate() && !$isOwner && !$isFollowed) {
+            return $this->json([
+                'profile' => [
+                    'username'       => $user->getUsername(),
+                    'bio'            => method_exists($user, 'getBio') ? $user->getBio() : '',
+                    'profilePicture' => $user->getProfilePicture(),
+                    'banner'         => $user->getProfileBanner(),
+                    'location'       => method_exists($user, 'getLocation') ? $user->getLocation() : '',
+                    'website'        => method_exists($user, 'getWebsite') ? $user->getWebsite() : '',
+                    'editable'       => $isOwner,
+                    'followed'       => $isFollowed,
+                    'blocked'        => $user->getBlocked(),
+                    'blockedUsers'   => false,
+                    'readOnly'       => method_exists($user, 'getReadOnly') ? $user->getReadOnly() : false,
+                    'private'        => method_exists($user, 'getPrivate') ? $user->getPrivate() : false,
+                ],
+                'pinnedTweet' => null,
+                'tweets'  => [],
+                'message' => "Ce compte est privé. Envoyez une demande de suivi pour voir les tweets."
+            ]);
         }
         
         $currentUserId = ($currentUser instanceof User) ? $currentUser->getId() : null;
@@ -61,7 +82,6 @@ class ProfileController extends AbstractController
                     }
                 }
             }
-            // Si le post est censuré, afficher le message de remplacement et masquer médias et réponses.
             if ($post->getCensored()) {
                 $tweets[] = [
                     'id'             => $post->getId(),
@@ -74,9 +94,7 @@ class ProfileController extends AbstractController
                     'replies'        => [],
                     'censored'       => true,
                 ];
-            } 
-            // Sinon, si le profil est bloqué, afficher le message approprié
-            else if ($isBlocked) {
+            } else if ($isBlocked) {
                 $tweets[] = [
                     'id'             => $post->getId(),
                     'content'        => "Ce compte a été bloqué pour non respect des conditions d’utilisation",
@@ -88,9 +106,7 @@ class ProfileController extends AbstractController
                     'media'          => $post->getMedia() ?: [],
                     'censored'       => false,
                 ];
-            } 
-            // Sinon, afficher le post normalement
-            else {
+            } else {
                 $tweetData = [
                     'id'             => $post->getId(),
                     'content'        => $post->getContent(),
@@ -118,7 +134,6 @@ class ProfileController extends AbstractController
             }
         }
         
-        // Récupérer le tweet épinglé, s'il existe
         $pinnedTweet = null;
         if ($user->getPinnedTweet()) {
             $pt = $user->getPinnedTweet();
@@ -155,7 +170,6 @@ class ProfileController extends AbstractController
         ]);
     }
 
-    // Endpoint pour récupérer le profil de l'utilisateur connecté pour édition
     #[Route('/api/profile/edit', name: 'api_profile_get_edit', methods: ['GET'])]
     public function getProfileEdit(): JsonResponse
     {
@@ -175,7 +189,6 @@ class ProfileController extends AbstractController
         return $this->json(['profile' => $profileData]);
     }
 
-    // Endpoint pour mettre à jour le profil de l'utilisateur connecté
     #[Route('/api/profile/edit', name: 'api_profile_edit', methods: ['PUT'])]
     public function updateProfile(Request $request, EntityManagerInterface $em): JsonResponse
     {
@@ -204,41 +217,114 @@ class ProfileController extends AbstractController
         return $this->json(['message' => 'Profil mis à jour avec succès.']);
     }
 
-    // Endpoint pour suivre/désabonner un utilisateur
     #[Route('/api/profile/{username}/follow', name: 'api_profile_toggle_follow', methods: ['POST'])]
-    public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
-    {
-        /** @var User|null $currentUser */
-        $currentUser = $this->getUser();
-        if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
-        }
-        $targetUser = $userRepository->findOneBy(['username' => $username]);
-        if (!$targetUser) {
-            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
-        }
-        if ($targetUser->getBlockedUsers()->contains($currentUser)) {
-            return $this->json(
-                ['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a bloqué.'],
-                JsonResponse::HTTP_FORBIDDEN
-            );
-        }
-        $action = "";
-        if ($currentUser->getFollowing()->contains($targetUser)) {
-            $currentUser->unfollow($targetUser);
-            $action = 'unfollowed';
-        } else {
-            $currentUser->follow($targetUser);
-            $action = 'followed';
-        }
-        $em->flush();
-        return $this->json([
-            'message' => 'Action effectuée: ' . $action,
-            'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
-        ]);
+public function toggleFollow(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+{
+    /** @var User|null $currentUser */
+    $currentUser = $this->getUser();
+    if (!$currentUser instanceof User) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
     }
+    $targetUser = $userRepository->findOneBy(['username' => $username]);
+    if (!$targetUser) {
+        return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+    }
+    if ($targetUser->getBlockedUsers()->contains($currentUser)) {
+        return $this->json(
+            ['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a bloqué.'],
+            JsonResponse::HTTP_FORBIDDEN
+        );
+    }
+    // Si le compte est privé, ajouter la demande dans la liste pending
+    if ($targetUser->getPrivate()) {
+        if (!$targetUser->getPendingFollowRequests()->contains($currentUser)) {
+            $targetUser->addPendingFollowRequest($currentUser);
+            $em->flush();
+            return $this->json([
+                'message' => 'Demande de suivi envoyée. En attente d\'approbation.'
+            ], JsonResponse::HTTP_OK);
+        } else {
+            return $this->json([
+                'message' => 'Vous avez déjà envoyé une demande de suivi.'
+            ], JsonResponse::HTTP_OK);
+        }
+    }
+    // Sinon, établir directement la relation de suivi
+    $action = "";
+    if ($currentUser->getFollowing()->contains($targetUser)) {
+        $currentUser->unfollow($targetUser);
+        $action = 'unfollowed';
+    } else {
+        $currentUser->follow($targetUser);
+        $action = 'followed';
+    }
+    $em->flush();
+    return $this->json([
+        'message' => 'Action effectuée: ' . $action,
+        'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
+    ]);
+}
 
-    // Endpoint pour bloquer/débloquer un utilisateur
+#[Route('/api/profile/pending', name: 'api_profile_pending', methods: ['GET'])]
+public function getPendingFollowRequests(): JsonResponse
+{
+    /** @var User|null $currentUser */
+    $currentUser = $this->getUser();
+    if (!$currentUser instanceof User) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    }
+    $pending = [];
+    foreach ($currentUser->getPendingFollowRequests() as $pendingUser) {
+        $pending[] = [
+            'username' => $pendingUser->getUsername(),
+            'profilePicture' => $pendingUser->getProfilePicture(),
+        ];
+    }
+    return $this->json(['pendingFollowRequests' => $pending]);
+}
+
+#[Route('/api/profile/pending/{followerUsername}/accept', name: 'api_profile_pending_accept', methods: ['POST'])]
+public function acceptFollowRequest(string $followerUsername, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+{
+    /** @var User|null $currentUser */
+    $currentUser = $this->getUser();
+    if (!$currentUser instanceof User) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    }
+    $follower = $userRepository->findOneBy(['username' => $followerUsername]);
+    if (!$follower) {
+        return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+    }
+    if (!$currentUser->getPendingFollowRequests()->contains($follower)) {
+        return $this->json(['error' => 'Aucune demande de suivi de cet utilisateur.'], JsonResponse::HTTP_BAD_REQUEST);
+    }
+    // Accepter la demande : supprimer de pending et établir la relation de suivi
+    $currentUser->removePendingFollowRequest($follower);
+    $follower->follow($currentUser);
+    $em->flush();
+    return $this->json(['message' => 'Demande de suivi acceptée.']);
+}
+
+#[Route('/api/profile/pending/{followerUsername}/decline', name: 'api_profile_pending_decline', methods: ['POST'])]
+public function declineFollowRequest(string $followerUsername, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+{
+    /** @var User|null $currentUser */
+    $currentUser = $this->getUser();
+    if (!$currentUser instanceof User) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    }
+    $follower = $userRepository->findOneBy(['username' => $followerUsername]);
+    if (!$follower) {
+        return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+    }
+    if (!$currentUser->getPendingFollowRequests()->contains($follower)) {
+        return $this->json(['error' => 'Aucune demande de suivi de cet utilisateur.'], JsonResponse::HTTP_BAD_REQUEST);
+    }
+    $currentUser->removePendingFollowRequest($follower);
+    $em->flush();
+    return $this->json(['message' => 'Demande de suivi refusée.']);
+}
+
     #[Route('/api/profile/{username}/block', name: 'api_profile_toggle_block', methods: ['POST'])]
     public function toggleBlock(string $username, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
     {
@@ -286,7 +372,6 @@ class ProfileController extends AbstractController
         return $this->json(['blockedUsers' => $blockedUsers]);
     }
 
-    // Endpoints pour récupérer et mettre à jour les paramètres de l'utilisateur
     #[Route('/api/profile/settings', name: 'api_profile_settings_get', methods: ['GET'])]
     public function getSettings(): JsonResponse
     {
@@ -320,7 +405,6 @@ class ProfileController extends AbstractController
         return $this->json(['message' => 'Paramètres mis à jour avec succès.']);
     }
 
-    // Nouveaux endpoints pour gérer l'épinglage des tweets
     #[Route('/api/profile/{username}/pin/{tweetId}', name: 'api_profile_pin_tweet', methods: ['POST'])]
     public function pinTweet(
         string $username,
@@ -334,7 +418,6 @@ class ProfileController extends AbstractController
         if (!$currentUser instanceof User) {
             return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
-        // Seul le propriétaire du profil peut épingler un tweet
         if ($currentUser->getUsername() !== $username) {
             return $this->json(['error' => 'Accès non autorisé.'], JsonResponse::HTTP_FORBIDDEN);
         }
@@ -342,7 +425,6 @@ class ProfileController extends AbstractController
         if (!$post) {
             return $this->json(['error' => 'Tweet non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
         }
-        // Vérifier que le tweet appartient au profil courant
         if ($post->getUser()->getId() !== $currentUser->getId()) {
             return $this->json(['error' => 'Ce tweet ne vous appartient pas.'], JsonResponse::HTTP_FORBIDDEN);
         }

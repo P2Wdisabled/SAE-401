@@ -1,4 +1,3 @@
-// src/components/Profile.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Tweet from "../ui/tweet";
@@ -11,9 +10,10 @@ const Profile: React.FC = () => {
   const [tweets, setTweets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState<boolean>(false);
-  const [BlockState, setBlockState] = useState<boolean>(false);
   const [followError, setFollowError] = useState<string>("");
   const [blockError, setBlockError] = useState<string>("");
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [showPendingPopup, setShowPendingPopup] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
@@ -43,23 +43,91 @@ const Profile: React.FC = () => {
         setFollowError("");
         setBlockError("");
         setProfile(data.profile);
-        setPinnedTweet(data.pinnedTweet); // Récupération du tweet épinglé
+        setPinnedTweet(data.pinnedTweet);
         setTweets(data.tweets);
         setFollowing(data.profile.followed);
-        setBlockState(data.profile.blockedUsers);
       })
       .catch((err) => {
         console.error(err);
-        // Vous pouvez gérer une erreur globale ici si nécessaire
       })
       .finally(() => {
         setLoading(false);
       });
   }, [username, navigate]);
 
+  const fetchPendingRequests = useCallback(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    fetch("http://localhost:8080/api/profile/pending", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token,
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setPendingRequests(data.pendingFollowRequests || []);
+      })
+      .catch((err) => console.error(err));
+  }, []);
+
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // Si le profil appartient à l'utilisateur connecté, récupérer les demandes en attente
+  useEffect(() => {
+    if (profile && profile.editable) {
+      fetchPendingRequests();
+    }
+  }, [profile, fetchPendingRequests]);
+
+  const handleAcceptRequest = async (followerUsername: string) => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`http://localhost:8080/api/profile/pending/${followerUsername}/accept`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data.error || "Erreur lors de l'acceptation de la demande");
+      } else {
+        alert(data.message);
+        fetchPendingRequests();
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Erreur lors de l'acceptation de la demande");
+    }
+  };
+
+  const handleDeclineRequest = async (followerUsername: string) => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`http://localhost:8080/api/profile/pending/${followerUsername}/decline`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data.error || "Erreur lors du refus de la demande");
+      } else {
+        alert(data.message);
+        fetchPendingRequests();
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Erreur lors du refus de la demande");
+    }
+  };
 
   const handlePinTweet = async (tweetId: number) => {
     const token = localStorage.getItem("token");
@@ -75,7 +143,6 @@ const Profile: React.FC = () => {
       if (!response.ok) {
         alert(data.error || "Erreur lors de l'épinglage du tweet");
       } else {
-        // Mettre à jour le tweet épinglé
         setPinnedTweet({ id: tweetId, ...data });
       }
     } catch (error) {
@@ -120,7 +187,11 @@ const Profile: React.FC = () => {
       if (!response.ok) {
         setFollowError(data.error || "Erreur lors du follow/unfollow");
       } else {
-        setFollowing(!following);
+        if (data.message) {
+          alert(data.message);
+        } else {
+          setFollowing(!following);
+        }
         setFollowError("");
       }
     } catch (error) {
@@ -143,10 +214,6 @@ const Profile: React.FC = () => {
       if (!response.ok) {
         setBlockError(data.error || "Erreur lors du blocage/déblocage");
       } else {
-        setBlockState(!BlockState);
-        if (BlockState && following) {
-          setFollowing(false);
-        }
         setBlockError("");
       }
     } catch (error) {
@@ -171,7 +238,7 @@ const Profile: React.FC = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto relative">
       {/* Bannière et photo de profil */}
       <div className="relative">
         <img src={profile.banner} alt="Bannière" className="w-full h-48 object-cover" />
@@ -180,6 +247,57 @@ const Profile: React.FC = () => {
           alt="Photo de profil"
           className="absolute bottom-0 left-4 w-24 h-24 rounded-full border-4 border-white transform translate-y-1/2"
         />
+        {/* Icône cloche pour les demandes en attente, visible uniquement pour le propriétaire */}
+        {profile.editable && pendingRequests.length > 0 && (
+          <button
+            onClick={() => setShowPendingPopup(!showPendingPopup)}
+            className="absolute top-4 right-4 text-white"
+            title="Demandes de suivi en attente"
+          >
+            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C10.346 2 9 3.346 9 5v1.07C6.165 7.185 4 10.044 4 13v5l-1 1v1h18v-1l-1-1v-5c0-2.956-2.165-5.815-5-6.93V5c0-1.654-1.346-3-3-3zM12 22c1.103 0 2-.897 2-2h-4c0 1.103.897 2 2 2z"/>
+            </svg>
+          </button>
+        )}
+        {showPendingPopup && (
+          <div className="absolute top-12 right-4 bg-white text-black p-4 rounded shadow-lg z-50">
+            <h3 className="font-bold mb-2">Demandes de suivi</h3>
+            {pendingRequests.length === 0 ? (
+              <p>Aucune demande en attente.</p>
+            ) : (
+              pendingRequests.map((req: any) => (
+                <div key={req.username} className="flex items-center gap-2 mb-2">
+                  <img
+                    src={req.profilePicture}
+                    alt={req.username}
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <span className="flex-1 text-sm">
+                    <strong>{req.username}</strong> souhaite s'abonner à vous !
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      text="Accepter"
+                      onClick={() => handleAcceptRequest(req.username)}
+                      moreClasses="bg-green-500 text-white px-2 py-1 rounded text-sm"
+                    />
+                    <Button
+                      text="Refuser"
+                      onClick={() => handleDeclineRequest(req.username)}
+                      moreClasses="bg-red-500 text-white px-2 py-1 rounded text-sm"
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+            <button
+              className="mt-2 text-blue-500 underline text-sm"
+              onClick={() => setShowPendingPopup(false)}
+            >
+              Fermer
+            </button>
+          </div>
+        )}
       </div>
       <div className="mt-16 px-4">
         <h1 className="text-2xl font-bold text-white">{profile.username}</h1>
@@ -227,7 +345,7 @@ const Profile: React.FC = () => {
               </div>
               <div>
                 <Button
-                  text={BlockState ? "Débloquer" : "Bloquer"}
+                  text="Bloquer"
                   onClick={toggleBlock}
                   moreClasses="bg-red-500 text-white px-4 py-2 rounded"
                 />
@@ -239,64 +357,71 @@ const Profile: React.FC = () => {
           )}
         </div>
       </div>
-      {/* Affichage du tweet épinglé s'il existe */}
-      {profile.editable && pinnedTweet && (
+      {profile.private && !profile.editable && !following ? (
         <div className="mt-4 px-4">
-          <h2 className="text-xl font-semibold text-white">Tweet épinglé</h2>
-          <div className="mb-4">
-            <Tweet
-              tweetId={pinnedTweet.id}
-              author={profile.username}
-              content={pinnedTweet.content}
-              profilePicture={profile.profilePicture || "default-profile.png"}
-              initialLikeCount={pinnedTweet.likeCount || 0}
-              initialRetweetCount={pinnedTweet.retweetCount || 0}
-              initialLiked={pinnedTweet.liked || false}
-              media={pinnedTweet.media}
-              replies={[]} 
-              isOwner={profile.editable}
-              censored={pinnedTweet.censored}
-            />
-            <Button
-              text="Désépingler"
-              onClick={handleUnpinTweet}
-              moreClasses="bg-gray-600 text-white px-4 py-2 rounded mt-2"
-            />
-          </div>
+          <p className="text-white">Ce compte est privé. Envoyez une demande de suivi pour voir les tweets.</p>
         </div>
-      )}
-      <div className="mt-4 px-4">
-        <h2 className="text-xl font-semibold mb-2 text-white">Tweets</h2>
-        {tweets.length === 0 ? (
-          <p className="text-white">Aucun tweet à afficher.</p>
-        ) : (
-          tweets.map((tweet, index) => (
-            <div key={tweet.id || index}>
-              <Tweet
-                tweetId={tweet.id}
-                author={profile.username}
-                content={tweet.content}
-                profilePicture={profile.profilePicture || "default-profile.png"}
-                initialLikeCount={tweet.likeCount || 0}
-                initialLiked={tweet.liked || false}
-                initialRetweetCount={tweet.retweetCount || 0}
-                media={tweet.media}
-                replies={tweet.replies}
-                isOwner={profile.editable}
-                censored={tweet.censored}
-                onDelete={() => handleDeleteTweet(tweet.id)}
-              />
-              {profile.editable && (
-                <Button
-                  text="Épingler"
-                  onClick={() => handlePinTweet(tweet.id)}
-                  moreClasses="bg-green-500 text-white px-4 py-2 rounded mt-2"
+      ) : (
+        <>
+          {profile.editable && pinnedTweet && (
+            <div className="mt-4 px-4">
+              <h2 className="text-xl font-semibold text-white">Tweet épinglé</h2>
+              <div className="mb-4">
+                <Tweet
+                  tweetId={pinnedTweet.id}
+                  author={profile.username}
+                  content={pinnedTweet.content}
+                  profilePicture={profile.profilePicture || "default-profile.png"}
+                  initialLikeCount={pinnedTweet.likeCount || 0}
+                  initialRetweetCount={pinnedTweet.retweetCount || 0}
+                  initialLiked={pinnedTweet.liked || false}
+                  media={pinnedTweet.media}
+                  replies={[]} 
+                  isOwner={profile.editable}
+                  censored={pinnedTweet.censored}
                 />
-              )}
+                <Button
+                  text="Désépingler"
+                  onClick={handleUnpinTweet}
+                  moreClasses="bg-gray-600 text-white px-4 py-2 rounded mt-2"
+                />
+              </div>
             </div>
-          ))
-        )}
-      </div>
+          )}
+          <div className="mt-4 px-4">
+            <h2 className="text-xl font-semibold mb-2 text-white">Tweets</h2>
+            {tweets.length === 0 ? (
+              <p className="text-white">Aucun tweet à afficher.</p>
+            ) : (
+              tweets.map((tweet, index) => (
+                <div key={tweet.id || index}>
+                  <Tweet
+                    tweetId={tweet.id}
+                    author={profile.username}
+                    content={tweet.content}
+                    profilePicture={profile.profilePicture || "default-profile.png"}
+                    initialLikeCount={tweet.likeCount || 0}
+                    initialLiked={tweet.liked || false}
+                    initialRetweetCount={tweet.retweetCount || 0}
+                    media={tweet.media}
+                    replies={tweet.replies}
+                    isOwner={profile.editable}
+                    censored={tweet.censored}
+                    onDelete={() => handleDeleteTweet(tweet.id)}
+                  />
+                  {profile.editable && (
+                    <Button
+                      text="Épingler"
+                      onClick={() => handlePinTweet(tweet.id)}
+                      moreClasses="bg-green-500 text-white px-4 py-2 rounded mt-2"
+                    />
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

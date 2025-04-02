@@ -1,4 +1,3 @@
-// src/pages/Settings.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
@@ -117,7 +116,7 @@ function Settings() {
           Compte privé
         </label>
         <p className="text-sm text-gray-400">
-          Lorsque activé, seuls vos abonnés pourront voir vos contenus.
+          Lorsque activé, toute nouvelle demande de suivi nécessitera votre approbation. Seuls les abonnés approuvés auront accès à vos tweets. De plus, les contenus d’un compte privé ne pourront pas être retweetés.
         </p>
       </div>
       <Button

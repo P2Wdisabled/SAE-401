@@ -31,12 +31,10 @@ class Post
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
-    // Champ pour stocker les médias (images, vidéos, etc.)
     #[ORM\Column(type: "json", nullable: true)]
     #[Groups(['post:read'])]
     private ?array $media = [];
 
-    // Relation pour les réponses (self-referencing)
     #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'replies')]
     #[ORM\JoinColumn(name: "parent_id", referencedColumnName: "id", nullable: true)]
     private ?self $parent = null;
@@ -47,13 +45,11 @@ class Post
 
     #[ORM\OneToMany(mappedBy: 'post', targetEntity: PostLike::class, cascade: ["remove"])]
     private Collection $likes;
-
-
     
-#[ORM\Column(type: "boolean")]
-private bool $censored = false;
+    #[ORM\Column(type: "boolean")]
+    private bool $censored = false;
 
-#[ORM\Column(type: "integer")]
+    #[ORM\Column(type: "integer")]
     #[Groups(['post:read'])]
     private int $retweetCount = 0;
 
@@ -70,115 +66,92 @@ private bool $censored = false;
         $this->replies = new ArrayCollection();
     }
 
-    public function getRetweetCount(): int
-    {
+    public function getRetweetCount(): int {
         return $this->retweetCount;
     }
 
-    public function setRetweetCount(int $retweetCount): self
-    {
+    public function setRetweetCount(int $retweetCount): self {
         $this->retweetCount = $retweetCount;
         return $this;
     }
 
-    public function incrementRetweetCount(): self
-    {
+    public function incrementRetweetCount(): self {
         $this->retweetCount++;
         return $this;
     }
 
-    public function getIsRetweet(): bool
-    {
+    public function getIsRetweet(): bool {
         return $this->isRetweet;
     }
 
-    public function setIsRetweet(bool $isRetweet): self
-    {
+    public function setIsRetweet(bool $isRetweet): self {
         $this->isRetweet = $isRetweet;
         return $this;
     }
 
-    public function getRetweetComment(): ?string
-    {
+    public function getRetweetComment(): ?string {
         return $this->retweetComment;
     }
 
-    public function setRetweetComment(?string $retweetComment): self
-    {
+    public function setRetweetComment(?string $retweetComment): self {
         $this->retweetComment = $retweetComment;
         return $this;
     }
 
-    public function getId(): ?int
-    {
+    public function getId(): ?int {
         return $this->id;
     }
 
-    public function getContent(): ?string
-    {
+    public function getContent(): ?string {
         return $this->content;
     }
 
-    public function setContent(string $content): static
-    {
+    public function setContent(string $content): static {
         $this->content = $content;
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTimeInterface
-    {
+    public function getCreatedAt(): ?\DateTimeInterface {
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeInterface $createdAt): static
-    {
+    public function setCreatedAt(\DateTimeInterface $createdAt): static {
         $this->createdAt = $createdAt;
         return $this;
     }
 
-    public function getUser(): ?User
-    {
+    public function getUser(): ?User {
         return $this->user;
     }
 
-    public function setUser(?User $user): static
-    {
+    public function setUser(?User $user): static {
         $this->user = $user;
         return $this;
     }
 
-    public function getMedia(): ?array
-    {
+    public function getMedia(): ?array {
         return $this->media;
     }
 
-    public function setMedia(?array $media): self
-    {
+    public function setMedia(?array $media): self {
         $this->media = $media;
         return $this;
     }
 
-    public function getParent(): ?self
-    {
+    public function getParent(): ?self {
         return $this->parent;
     }
 
-    public function setParent(?self $parent): self
-    {
+    public function setParent(?self $parent): self {
         $this->parent = $parent;
         return $this;
     }
 
-    /**
-     * @return Collection|self[]
-     */
-    public function getReplies(): Collection
-    {
+    public function getReplies(): Collection {
         return $this->replies;
     }
 
-    public function addReply(self $reply): self
-    {
+    public function addReply(self $reply): self {
         if (!$this->replies->contains($reply)) {
             $this->replies[] = $reply;
             $reply->setParent($this);
@@ -186,8 +159,7 @@ private bool $censored = false;
         return $this;
     }
 
-    public function removeReply(self $reply): self
-    {
+    public function removeReply(self $reply): self {
         if ($this->replies->removeElement($reply)) {
             if ($reply->getParent() === $this) {
                 $reply->setParent(null);
@@ -196,27 +168,20 @@ private bool $censored = false;
         return $this;
     }
 
-    /**
-     * @return Collection|PostLike[]
-     */
-    public function getLikes(): Collection
-    {
+    public function getLikes(): Collection {
         return $this->likes;
     }
 
-    public function getLikesCount(): int
-    {
+    public function getLikesCount(): int {
         return $this->likes->count();
     }
 
-    public function getCensored(): bool
-{
-    return $this->censored;
-}
+    public function getCensored(): bool {
+        return $this->censored;
+    }
 
-public function setCensored(bool $censored): self
-{
-    $this->censored = $censored;
-    return $this;
-}
+    public function setCensored(bool $censored): self {
+        $this->censored = $censored;
+        return $this;
+    }
 }

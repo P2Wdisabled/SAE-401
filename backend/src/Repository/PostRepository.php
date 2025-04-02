@@ -22,7 +22,6 @@ class PostRepository extends ServiceEntityRepository
             ->innerJoin('p.user', 'u')
             ->where('p.parent IS NULL')
             ->orderBy('p.createdAt', 'DESC')
-            ->setFirstResult($offset)
             ->setMaxResults($count)
             ->getQuery();
 

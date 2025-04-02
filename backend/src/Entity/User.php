@@ -38,7 +38,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?string $profileAvatar = "https://static.vecteezy.com/system/resources/previews/000/701/690/large_2x/abstract-polygonal-banner-background-vector.jpg";
 
-    // Nouveaux champs pour le profil
     #[ORM\Column(type: "text", nullable: true)]
     private ?string $bio = null;
 
@@ -50,7 +49,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     private ?string $plainPassword = null;
 
-    // Définition de la relation OneToMany avec Post
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Post::class, orphanRemoval: true)]
     #[ORM\OrderBy(['createdAt' => 'DESC'])]
     private Collection $posts;
@@ -66,21 +64,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $followers;
 
     #[ORM\Column(type: "boolean")]
-private bool $readOnly = false;
+    private bool $readOnly = false;
 
-#[ORM\Column(type: "boolean")]
-private bool $private = false;
-
+    #[ORM\Column(type: "boolean")]
+    private bool $private = false;
     
-#[ORM\ManyToMany(targetEntity: self::class)]
-#[ORM\JoinTable(name: 'user_blocked')]
-private Collection $blockedUsers;
+    #[ORM\ManyToMany(targetEntity: self::class)]
+    #[ORM\JoinTable(name: 'user_blocked')]
+    private Collection $blockedUsers;
 
+    #[ORM\ManyToOne(targetEntity: Post::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Post $pinnedTweet = null;
 
-    
-#[ORM\ManyToOne(targetEntity: Post::class)]
-#[ORM\JoinColumn(nullable: true)]
-private ?Post $pinnedTweet = null;
+    #[ORM\ManyToMany(targetEntity: self::class)]
+    #[ORM\JoinTable(name: 'user_pending_followers')]
+    private Collection $pendingFollowRequests;
 
     public function __construct()
     {
@@ -88,162 +87,148 @@ private ?Post $pinnedTweet = null;
         $this->following = new ArrayCollection();
         $this->followers = new ArrayCollection();
         $this->blockedUsers = new ArrayCollection();
+        $this->pendingFollowRequests = new ArrayCollection();
     }
 
-    
-    public function getPinnedTweet(): ?Post
-{
-    return $this->pinnedTweet;
-}
-
-public function setPinnedTweet(?Post $pinnedTweet): self
-{
-    $this->pinnedTweet = $pinnedTweet;
-    return $this;
-}
-
-    
-public function getBlockedUsers(): Collection
-{
-    return $this->blockedUsers;
-}
-
-public function block(self $user): self
-{
-    if (!$this->blockedUsers->contains($user)) {
-        $this->blockedUsers[] = $user;
-    }
-    return $this;
-}
-
-public function unblock(self $user): self
-{
-    if ($this->blockedUsers->contains($user)) {
-        $this->blockedUsers->removeElement($user);
-    }
-    return $this;
-}
-    public function getBlocked(): bool
+    public function getPendingFollowRequests(): Collection
     {
+        return $this->pendingFollowRequests;
+    }
+
+    public function addPendingFollowRequest(User $user): self
+    {
+        if (!$this->pendingFollowRequests->contains($user)) {
+            $this->pendingFollowRequests[] = $user;
+        }
+        return $this;
+    }
+
+    public function removePendingFollowRequest(User $user): self
+    {
+        if ($this->pendingFollowRequests->contains($user)) {
+            $this->pendingFollowRequests->removeElement($user);
+        }
+        return $this;
+    }
+    
+    public function getPinnedTweet(): ?Post {
+        return $this->pinnedTweet;
+    }
+
+    public function setPinnedTweet(?Post $pinnedTweet): self {
+        $this->pinnedTweet = $pinnedTweet;
+        return $this;
+    }
+    
+    public function getBlockedUsers(): Collection {
+        return $this->blockedUsers;
+    }
+
+    public function block(self $user): self {
+        if (!$this->blockedUsers->contains($user)) {
+            $this->blockedUsers[] = $user;
+        }
+        return $this;
+    }
+
+    public function unblock(self $user): self {
+        if ($this->blockedUsers->contains($user)) {
+            $this->blockedUsers->removeElement($user);
+        }
+        return $this;
+    }
+
+    public function getBlocked(): bool {
         return $this->blocked;
     }
 
-    public function setBlocked(bool $blocked): self
-    {
+    public function setBlocked(bool $blocked): self {
         $this->blocked = $blocked;
         return $this;
     }
     
-    public function getProfileBanner(): ?string
-    {
+    public function getProfileBanner(): ?string {
         return $this->profileAvatar;
     }
 
-    public function setProfileBanner(?string $profileAvatar): self
-    {
+    public function setProfileBanner(?string $profileAvatar): self {
         $this->profileAvatar = $profileAvatar;
         return $this;
     }
 
-    public function getProfilePicture(): ?string
-    {
+    public function getProfilePicture(): ?string {
         return $this->profilePicture;
     }
 
-    public function setProfilePicture(?string $profilePicture): self
-    {
+    public function setProfilePicture(?string $profilePicture): self {
         $this->profilePicture = $profilePicture;
         return $this;
     }
 
-    public function getId(): ?int
-    {
+    public function getId(): ?int {
         return $this->id;
     }
 
-    public function getUsername(): ?string
-    {
+    public function getUsername(): ?string {
         return $this->username;
     }
 
-    public function setUsername(string $username): static
-    {
+    public function setUsername(string $username): static {
         $this->username = $username;
         return $this;
     }
     
-    public function setEmail(string $email): self 
-    {
+    public function setEmail(string $email): self  {
         $this->email = $email;
         return $this;
     }
     
-    public function getEmail(): string 
-    {
+    public function getEmail(): string  {
         return $this->email;
     }
 
-    public function getUserIdentifier(): string
-    {
+    public function getUserIdentifier(): string {
         return $this->email;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getRoles(): array
-    {
+    public function getRoles(): array {
         $roles = $this->roles;
         $roles[] = 'ROLE_USER';
         return array_unique($roles);
     }
 
-    /**
-     * @param list<string> $roles
-     */
-    public function setRoles(array $roles): static
-    {
+    public function setRoles(array $roles): static {
         $this->roles = $roles;
         return $this;
     }
 
-    public function setPassword(string $password): self 
-    {
+    public function setPassword(string $password): self  {
         $this->password = $password;
         return $this;
     }
     
-    public function getPassword(): string 
-    {
+    public function getPassword(): string  {
         return $this->password;
     }
 
-    public function setPlainPassword(?string $plainPassword): self 
-    {
+    public function setPlainPassword(?string $plainPassword): self  {
         $this->plainPassword = $plainPassword;
         return $this;
     }
     
-    public function getPlainPassword(): ?string 
-    {
+    public function getPlainPassword(): ?string  {
         return $this->plainPassword;
     }
 
-    public function eraseCredentials(): void
-    {
+    public function eraseCredentials(): void {
         // $this->plainPassword = null;
     }
 
-    /**
-     * @return Collection|Post[]
-     */
-    public function getPosts(): Collection
-    {
+    public function getPosts(): Collection {
         return $this->posts;
     }
 
-    public function addPost(Post $post): static
-    {
+    public function addPost(Post $post): static {
         if (!$this->posts->contains($post)) {
             $this->posts[] = $post;
             $post->setUser($this);
@@ -251,8 +236,7 @@ public function unblock(self $user): self
         return $this;
     }
 
-    public function removePost(Post $post): static
-    {
+    public function removePost(Post $post): static {
         if ($this->posts->removeElement($post)) {
             if ($post->getUser() === $this) {
                 $post->setUser(null);
@@ -261,63 +245,51 @@ public function unblock(self $user): self
         return $this;
     }
 
-    public function getFollowing(): Collection
-    {
+    public function getFollowing(): Collection {
         return $this->following;
     }
 
-    public function follow(self $user): self
-    {
+    public function follow(self $user): self {
         if (!$this->following->contains($user)) {
             $this->following[] = $user;
         }
         return $this;
     }
 
-    public function unfollow(self $user): self
-    {
+    public function unfollow(self $user): self {
         if ($this->following->contains($user)) {
             $this->following->removeElement($user);
         }
         return $this;
     }
 
-    public function getFollowers(): Collection
-    {
+    public function getFollowers(): Collection {
         return $this->followers;
     }
     
-    // Getters et setters pour les nouveaux champs
-
-    public function getBio(): ?string
-    {
+    public function getBio(): ?string {
         return $this->bio;
     }
 
-    public function setBio(?string $bio): self
-    {
+    public function setBio(?string $bio): self {
         $this->bio = $bio;
         return $this;
     }
 
-    public function getLocation(): ?string
-    {
+    public function getLocation(): ?string {
         return $this->location;
     }
 
-    public function setLocation(?string $location): self
-    {
+    public function setLocation(?string $location): self {
         $this->location = $location;
         return $this;
     }
 
-    public function getWebsite(): ?string
-    {
+    public function getWebsite(): ?string {
         return $this->website;
     }
 
-    public function setWebsite(?string $website): self
-    {
+    public function setWebsite(?string $website): self {
         $this->website = $website;
         return $this;
     }
