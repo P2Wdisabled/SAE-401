@@ -68,7 +68,7 @@ const Tweet: React.FC<TweetProps> = ({
   const [replyContent, setReplyContent] = useState<string>("");
   const [localReplies, setLocalReplies] = useState<any[]>(replies);
   const [actionError, setActionError] = useState<string>("");
-  const [isLocked, setIsLocked] = useState<boolean>(locked);
+  const [isLockedState, setIsLockedState] = useState<boolean>(locked);
   const navigate = useNavigate();
 
   const toggleLike = async () => {
@@ -223,6 +223,11 @@ const Tweet: React.FC<TweetProps> = ({
 
   const handleReplySubmit = async () => {
     if (replyContent.trim() === "") return;
+    // Empêcher l'envoi si le tweet est verrouillé (bien que le formulaire ne soit plus accessible)
+    if (isLockedState) {
+      setActionError("Les réponses sont verrouillées pour ce post.");
+      return;
+    }
     const token = localStorage.getItem("token");
     try {
       const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/reply`, {
@@ -264,7 +269,7 @@ const Tweet: React.FC<TweetProps> = ({
         return;
       }
       const data = await response.json();
-      setIsLocked(true);
+      setIsLockedState(true);
       setActionError("");
     } catch (error) {
       console.error("Erreur lors du verrouillage", error);
@@ -287,7 +292,7 @@ const Tweet: React.FC<TweetProps> = ({
         return;
       }
       const data = await response.json();
-      setIsLocked(false);
+      setIsLockedState(false);
       setActionError("");
     } catch (error) {
       console.error("Erreur lors du déverrouillage", error);
@@ -308,7 +313,7 @@ const Tweet: React.FC<TweetProps> = ({
           {!isEditing ? (
             <>
               <p className={`text-gray-300 ${censored ? "italic" : ""}`}>{parseContent(content)}</p>
-              {isLocked && (
+              {isLockedState && (
                 <p className="text-red-400 text-sm">Les réponses sont verrouillées.</p>
               )}
               {!censored && media && media.length > 0 && (
@@ -423,15 +428,18 @@ const Tweet: React.FC<TweetProps> = ({
               </svg>
               <span className="text-white">{retweetCount}</span>
             </div>
-            <button
-              onClick={() => setShowReplyForm((prev) => !prev)}
-              className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
-              title="Répondre"
-            >
-              💬
-            </button>
+            {/* Affichage du bouton Répondre uniquement si le post n'est pas verrouillé */}
+            {!isLockedState && (
+              <button
+                onClick={() => setShowReplyForm((prev) => !prev)}
+                className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+                title="Répondre"
+              >
+                💬
+              </button>
+            )}
             {isOwner && (
-              isLocked ? (
+              isLockedState ? (
                 <button onClick={handleUnlock} className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition">
                   Déverrouiller
                 </button>
@@ -442,7 +450,7 @@ const Tweet: React.FC<TweetProps> = ({
               )
             )}
           </div>
-          {showReplyForm && !isLocked && (
+          {showReplyForm && !isLockedState && (
             <div className="mt-2">
               <textarea
                 className="w-full bg-gray-800 text-white outline-none resize-none p-2"
@@ -461,7 +469,7 @@ const Tweet: React.FC<TweetProps> = ({
             </div>
           )}
           {actionError && <p className="text-red-500 mt-2">{actionError}</p>}
-          {localReplies.length > 0 && !isLocked && (
+          {localReplies.length > 0 && !isLockedState && (
             <div className="mt-4 pl-8 border-l border-gray-600">
               {localReplies.map((reply, index) => (
                 <div key={reply.id || index} className="mb-2">

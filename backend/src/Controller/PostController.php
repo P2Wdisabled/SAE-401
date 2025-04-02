@@ -210,7 +210,7 @@ class PostController extends AbstractController
         $payload = new CreatePostPayload();
         $payload->setContent($content);
         $payload->setMedia($media);
-        $payload->setLocked($locked); // <-- Nouveau champ dans le payload
+        $payload->setLocked($locked); // Nouveau champ dans le payload
 
         $errors = $validator->validate($payload);
         if (count($errors) > 0) {
@@ -281,6 +281,10 @@ class PostController extends AbstractController
         $user = $this->getUser();
         if (!$user) {
             return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+        }
+        // Vérifier si le post est verrouillé et empêcher l'ajout d'une réponse
+        if ($post->isLocked()) {
+            return $this->json(['error' => 'Les réponses sont verrouillées pour ce post.'], Response::HTTP_FORBIDDEN);
         }
         $postOwner = $post->getUser();
         if ($postOwner && $postOwner->getBlockedUsers()->contains($user)) {
@@ -441,7 +445,7 @@ class PostController extends AbstractController
         ], Response::HTTP_CREATED);
     }
     
-    // *************** Nouvelle route pour verrouiller un tweet ****************
+    // *************** Routes de verrouillage ****************
     #[Route('/api/posts/{id}/lock', name: 'api_post_lock', methods: ['POST'])]
     public function lock(Post $post, EntityManagerInterface $em): JsonResponse
     {
@@ -479,5 +483,5 @@ class PostController extends AbstractController
         $em->flush();
         return $this->json(['message' => 'Post déverrouillé avec succès.', 'locked' => false], Response::HTTP_OK);
     }
-    // *************************************************************************
+    // **********************************************************
 }
