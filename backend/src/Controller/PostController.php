@@ -274,6 +274,7 @@ class PostController extends AbstractController
         }
     }
 
+    
     #[Route('/api/posts/{id}/reply', name: 'api_post_reply', methods: ['POST'])]
     public function reply(Post $post, Request $request, ValidatorInterface $validator, EntityManagerInterface $em): JsonResponse
     {
@@ -287,6 +288,10 @@ class PostController extends AbstractController
             return $this->json(['error' => 'Les réponses sont verrouillées pour ce post.'], Response::HTTP_FORBIDDEN);
         }
         $postOwner = $post->getUser();
+        // Si l’auteur a limité les commentaires aux abonnés et que le commentateur n'est pas un abonné (sauf s'il s'agit de lui-même)
+        if ($postOwner->getLimited() && $user->getId() !== $postOwner->getId() && !$postOwner->getFollowers()->contains($user)) {
+            return $this->json(['error' => 'Les commentaires sont limités aux abonnés de ce profil.'], Response::HTTP_FORBIDDEN);
+        }
         if ($postOwner && $postOwner->getBlockedUsers()->contains($user)) {
             return $this->json(
                 ['error' => 'Vous ne pouvez pas interagir avec ce post car cet utilisateur vous a bloqué.'],

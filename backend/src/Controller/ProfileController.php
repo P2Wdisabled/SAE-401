@@ -540,4 +540,36 @@ class ProfileController extends AbstractController
         
         return $this->json(['message' => 'Notifications marquées comme lues.']);
     }
+
+    #[Route('/api/profile/toggle-comments-limit', name: 'api_profile_limits', methods: ['POST'])]
+public function toggleLimit(EntityManagerInterface $em): JsonResponse
+{
+    /** @var User|null $currentUser */
+    $currentUser = $this->getUser();
+    if (!$currentUser) {
+        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    }
+    // Inverser l'état actuel
+    $currentUser->setLimited(!$currentUser->getLimited());
+    // Persister la modification en base de données
+    $em->flush();
+    return $this->json([
+        'message' => $currentUser->getLimited()
+            ? 'Les commentaires ont été limités aux abonnés'
+            : 'Les commentaires ne sont plus limités aux abonnés'
+    ]);
+}
+
+
+    #[Route('/api/profile/limit', name: 'api_profile_limit', methods: ['GET'])]
+    public function isLimited(): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        $data[] = [
+            'limited' => $currentUser->getLimited(),
+        ];
+    
+    return $this->json(['limit' => $data]);
+    }
 }

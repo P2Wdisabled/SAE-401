@@ -69,6 +69,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: "boolean")]
     private bool $private = false;
     
+    #[ORM\Column(type: "boolean")]
+    private bool $limited = false;
+    
     #[ORM\ManyToMany(targetEntity: self::class)]
     #[ORM\JoinTable(name: 'user_blocked')]
     private Collection $blockedUsers;
@@ -309,6 +312,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     
     public function setPrivate(bool $private): self {
         $this->private = $private;
+        return $this;
+    }
+
+    public function getLimited(): bool {
+        return $this->limited;
+    }
+    
+    public function setLimited(bool $limited): self {
+        $this->limited = $limited;
         return $this;
     }
 }
