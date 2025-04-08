@@ -4,8 +4,8 @@ import Button from "../ui/Button";
 import { useCheckToken } from "../components/Checker";
 
 function Settings() {
-  useCheckToken();
   const navigate = useNavigate();
+  useCheckToken();
   const [readOnly, setReadOnly] = useState<boolean>(false);
   const [privateAccount, setPrivateAccount] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
