@@ -95,6 +95,7 @@ class ProfileController extends AbstractController
                     'media'          => [],
                     'replies'        => [],
                     'censored'       => true,
+                    'locked'        => $post->isLocked(),
                 ];
             } else if ($isBlocked) {
                 $tweets[] = [
@@ -107,6 +108,7 @@ class ProfileController extends AbstractController
                     'editable'       => $isOwner,
                     'media'          => $post->getMedia() ?: [],
                     'censored'       => false,
+                    'locked'        => $post->isLocked(),
                 ];
             } else {
                 $tweetData = [
@@ -119,6 +121,7 @@ class ProfileController extends AbstractController
                     'retweetCount'   => $post->getRetweetCount(),
                     'media'          => $post->getMedia() ?: [],
                     'censored'       => false,
+                    'locked'        => $post->isLocked(),
                 ];
                 $repliesArray = [];
                 foreach ($post->getReplies() as $reply) {
@@ -129,6 +132,7 @@ class ProfileController extends AbstractController
                         'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
                         'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
                         'media'          => $reply->getMedia() ?: [],
+                        'locked'        => $post->isLocked(),
                     ];
                 }
                 $tweetData['replies'] = $repliesArray;
