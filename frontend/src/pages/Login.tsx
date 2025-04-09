@@ -2,30 +2,18 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import FormInput from "../ui/FormInput";
-import { useCheckToken } from "../components/Checker";
 import Button from "../ui/Button";
+import { useCheckToken } from "../components/Checker";
+import { isEmailValid } from "../utils/isEmailValid";
+import { isPasswordValid } from "../utils/isPasswordValid";
+import { loginUser } from "../api/loginUser";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   useCheckToken();
-
   const navigate = useNavigate();
-
-  const isEmailValid = (email: string): boolean => {
-    const emailRegex = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/;
-    return emailRegex.test(email);
-  };
-
-  const isPasswordValid = (password: string): boolean => {
-    const minLength = 8;
-    const hasDigit = /[0-9]/.test(password);
-    const hasUpper = /[A-Z]/.test(password);
-    const hasLower = /[a-z]/.test(password);
-    const hasSpecial = /[\W_]/.test(password);
-    return password.length >= minLength && hasDigit && hasUpper && hasLower && hasSpecial;
-  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -39,23 +27,12 @@ function Login() {
     const payload = { email, password };
 
     try {
-      const response = await fetch("http://localhost:8080/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        localStorage.setItem("token", data.token);
-        navigate("/");
-      } else {
-        // Afficher l'erreur renvoyée par l'API
-        setError(data.error || "Email ou mot de passe incorrect");
-      }
-    } catch (error) {
-      console.error("Erreur lors de la requête:", error);
-      setError("Erreur lors de la requête, veuillez réessayer plus tard.");
+      const data = await loginUser(payload);
+      localStorage.setItem("token", data.token);
+      navigate("/");
+    } catch (err: any) {
+      console.error("Erreur lors de la requête:", err);
+      setError(err.message || "Email ou mot de passe incorrect");
     }
   };
 

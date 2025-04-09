@@ -4,6 +4,8 @@ import { useParams } from "react-router-dom";
 import { useCheckToken } from "../components/Checker";
 import Button from "../ui/Button";
 import FormInput from "../ui/FormInput";
+import { getUser } from "../api/getUser";
+import { updateUser } from "../api/updateUser";
 
 function AdminEdit() {
   useCheckToken();
@@ -17,65 +19,44 @@ function AdminEdit() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Récupérer les informations de l'utilisateur par son id
+  // Récupérer les informations de l'utilisateur par son id via le module getUser
   useEffect(() => {
-    if (id) {
-      fetch(`http://localhost:8080/users/${id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + localStorage.getItem("token"),
-        },
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("Erreur lors de la récupération de l'utilisateur");
-          }
-          return response.json();
-        })
-        .then((data) => {
-          setUsername(data.username);
-          setEmail(data.email);
-        })
-        .catch((err) => {
-          console.error(err);
-          setError("Erreur lors de la récupération de l'utilisateur.");
-        });
-    }
-  }, [id]);
-
-  // Fonction pour mettre à jour l'utilisateur
-  const handleSubmit = () => {
-    setLoading(true);
-    setError("");
-    setSuccess("");
-    fetch(`http://localhost:8080/users/${id}`, {
-      method: "PUT", // ou "PATCH" selon votre API
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + localStorage.getItem("token"),
-      },
-      body: JSON.stringify({
-        username: username,
-        email: email,
-      }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Erreur lors de la mise à jour de l'utilisateur");
-        }
-        return response.json();
-      })
-      .then(() => {
-        setSuccess("Utilisateur mis à jour avec succès.");
+    if (!id) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    getUser(token, id)
+      .then((data) => {
+        setUsername(data.username);
+        setEmail(data.email);
+        setError("");
       })
       .catch((err) => {
         console.error(err);
-        setError("Erreur lors de la mise à jour de l'utilisateur.");
-      })
-      .finally(() => {
-        setLoading(false);
+        setError("Erreur lors de la récupération de l'utilisateur.");
       });
+  }, [id]);
+
+  // Fonction pour mettre à jour l'utilisateur via le module updateUser
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    const token = localStorage.getItem("token");
+    if (!token || !id) {
+      setError("Utilisateur non authentifié.");
+      setLoading(false);
+      return;
+    }
+    const payload = { username, email };
+    try {
+      await updateUser(token, id, payload);
+      setSuccess("Utilisateur mis à jour avec succès.");
+    } catch (err) {
+      console.error(err);
+      setError("Erreur lors de la mise à jour de l'utilisateur.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

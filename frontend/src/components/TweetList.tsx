@@ -1,7 +1,9 @@
+// src/components/TweetList.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Tweet from "../ui/tweet";
 import Button from "../ui/Button";
+import { getPosts } from "../api/getPosts";
 
 type TweetListProps = {
   activeTab: "pourVous" | "abonnements";
@@ -22,7 +24,8 @@ function TweetList({ activeTab }: TweetListProps) {
   const [filterType, setFilterType] = useState("");
   const [filterUser, setFilterUser] = useState("");
 
-  const fetchPosts = (pageNum: number) => {
+  // Fonction générique pour récupérer les posts (en fonction de la page)
+  const fetchPosts = async (pageNum: number) => {
     setLoading(true);
     const token = localStorage.getItem("token");
     if (!token) {
@@ -30,47 +33,31 @@ function TweetList({ activeTab }: TweetListProps) {
       navigate("/landing");
       return;
     }
-    let url = activeTab === "abonnements"
-      ? `http://localhost:8080/api/posts?filter=following&page=${pageNum}`
-      : `http://localhost:8080/api/posts?page=${pageNum}`;
-    
-    if (searchText) url += `&search=${encodeURIComponent(searchText)}`;
-    if (filterDate) url += `&date=${encodeURIComponent(filterDate)}`;
-    if (filterType) url += `&type=${encodeURIComponent(filterType)}`;
-    if (filterUser) url += `&user=${encodeURIComponent(filterUser)}`;
-    
-    fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token,
-      },
-    })
-      .then((response) =>
-        response.json().then((data) => {
-          if (!response.ok) {
-            if (response.status === 401) navigate("/landing");
-            else if (response.status === 403) navigate("/");
-            throw new Error(data.error || "Erreur lors de la récupération des posts");
-          }
-          return data;
-        })
-      )
-      .then((data) => {
-        setError("");
-        const newPosts = data.posts;
-        if (pageNum === 0) setPosts(newPosts);
-        else setPosts((prevPosts) => [...prevPosts, ...newPosts]);
-        if (newPosts.length < 50) setHasMore(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError(err.message || "Erreur lors du chargement des posts.");
-      })
-      .finally(() => setLoading(false));
+    try {
+      const data = await getPosts(
+        token,
+        pageNum,
+        activeTab,
+        searchText,
+        filterDate,
+        filterType,
+        filterUser
+      );
+      setError("");
+      const newPosts = data.posts;
+      if (pageNum === 0) setPosts(newPosts);
+      else setPosts((prevPosts) => [...prevPosts, ...newPosts]);
+      if (newPosts.length < 50) setHasMore(false);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Erreur lors du chargement des posts.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const refreshPosts = () => {
+  // Rafraîchit les posts (page 0) avec un délai minimum pour l'expérience utilisateur
+  const refreshPosts = async () => {
     const startTime = Date.now();
     setLoading(true);
     const token = localStorage.getItem("token");
@@ -80,49 +67,32 @@ function TweetList({ activeTab }: TweetListProps) {
       setLoading(false);
       return;
     }
-    let url = activeTab === "abonnements"
-      ? `http://localhost:8080/api/posts?filter=following&page=0`
-      : `http://localhost:8080/api/posts?page=0`;
-    if (searchText) url += `&search=${encodeURIComponent(searchText)}`;
-    if (filterDate) url += `&date=${encodeURIComponent(filterDate)}`;
-    if (filterType) url += `&type=${encodeURIComponent(filterType)}`;
-    if (filterUser) url += `&user=${encodeURIComponent(filterUser)}`;
-    
-    fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token,
-      },
-    })
-      .then((response) =>
-        response.json().then((data) => {
-          if (!response.ok) {
-            if (response.status === 401) navigate("/landing");
-            else if (response.status === 403) navigate("/");
-            throw new Error(data.error || "Erreur lors de la récupération des posts");
-          }
-          return data;
-        })
-      )
-      .then((data) => {
-        setError("");
-        const newPosts = data.posts;
-        setPosts(newPosts);
-        if (newPosts.length < 50) setHasMore(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError(err.message || "Erreur lors du rafraîchissement des posts.");
-      })
-      .finally(() => {
-        const elapsed = Date.now() - startTime;
-        const minDuration = 2000;
-        const delay = Math.max(0, minDuration - elapsed);
-        setTimeout(() => setLoading(false), delay);
-      });
+    try {
+      const data = await getPosts(
+        token,
+        0,
+        activeTab,
+        searchText,
+        filterDate,
+        filterType,
+        filterUser
+      );
+      setError("");
+      const newPosts = data.posts;
+      setPosts(newPosts);
+      if (newPosts.length < 50) setHasMore(false);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Erreur lors du rafraîchissement des posts.");
+    } finally {
+      const elapsed = Date.now() - startTime;
+      const minDuration = 2000;
+      const delay = Math.max(0, minDuration - elapsed);
+      setTimeout(() => setLoading(false), delay);
+    }
   };
 
+  // Charge les posts au montage et lors des changements de filtres
   useEffect(() => {
     setPosts([]);
     setPage(0);
@@ -130,10 +100,12 @@ function TweetList({ activeTab }: TweetListProps) {
     fetchPosts(0);
   }, [activeTab, searchText, filterDate, filterType, filterUser]);
 
+  // Charge la page suivante si nécessaire
   useEffect(() => {
     if (page > 0) fetchPosts(page);
   }, [page]);
 
+  // Déclenche l'infini scrolling
   useEffect(() => {
     const handleScroll = () => {
       const scrolledFromTop = window.innerHeight + document.documentElement.scrollTop;
@@ -146,6 +118,7 @@ function TweetList({ activeTab }: TweetListProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasMore, loading]);
 
+  // Gestion de l'auto-refresh
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
     if (autoRefreshEnabled) {

@@ -1,9 +1,13 @@
+// src/components/EditProfile.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
 import FormInput from "../ui/FormInput";
-import FormTextarea from "../ui/FormTextarea"; // Créez ce composant si nécessaire
+import FormTextarea from "../ui/FormTextarea";
 import Button from "../ui/Button";
+import { uploadFile } from "../api/uploadFile";
+import { getProfileEdit } from "../api/getProfileEdit";
+import { updateProfile } from "../api/updateProfile";
 
 const EditProfile: React.FC = () => {
   const [bio, setBio] = useState("");
@@ -14,23 +18,16 @@ const EditProfile: React.FC = () => {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
-  // Fonction pour uploader un fichier et récupérer son URL via l'endpoint /api/upload
-  const uploadFile = async (file: File): Promise<string> => {
+  // Fonction pour uploader un fichier via le module API uploadFile
+  const handleUploadFile = async (file: File, setter: (url: string) => void) => {
     const token = localStorage.getItem("token");
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await fetch("http://localhost:8080/api/upload", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + token,
-      },
-      body: formData,
-    });
-    if (!response.ok) {
-      throw new Error("Erreur lors de l'upload");
+    if (!token) return;
+    try {
+      const url = await uploadFile(file, token);
+      setter(url);
+    } catch (error) {
+      console.error(error);
     }
-    const data = await response.json();
-    return data.url;
   };
 
   // Dropzone pour la photo de profil
@@ -38,11 +35,7 @@ const EditProfile: React.FC = () => {
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length === 0) return;
       const file = acceptedFiles[0];
-      uploadFile(file)
-        .then((url) => {
-          setProfilePicture(url);
-        })
-        .catch((error) => console.error(error));
+      handleUploadFile(file, setProfilePicture);
     },
     []
   );
@@ -61,11 +54,7 @@ const EditProfile: React.FC = () => {
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length === 0) return;
       const file = acceptedFiles[0];
-      uploadFile(file)
-        .then((url) => {
-          setBanner(url);
-        })
-        .catch((error) => console.error(error));
+      handleUploadFile(file, setBanner);
     },
     []
   );
@@ -79,26 +68,14 @@ const EditProfile: React.FC = () => {
     multiple: false,
   });
 
-  // Récupération des informations actuelles du profil via le token
+  // Récupération des informations actuelles du profil
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
       navigate("/landing");
       return;
     }
-    fetch("http://localhost:8080/api/profile/edit", {
-      method: "GET",
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Erreur lors du chargement des informations du profil");
-        }
-        return res.json();
-      })
+    getProfileEdit(token)
       .then((data) => {
         const profileData = data.profile;
         setBio(profileData.bio || "");
@@ -110,31 +87,21 @@ const EditProfile: React.FC = () => {
       .catch((err) => console.error(err));
   }, [navigate]);
 
+  // Soumission du formulaire pour mettre à jour le profil
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
+    if (!token) return;
     const payload = { bio, profilePicture, banner, location, website };
     try {
-      const response = await fetch("http://localhost:8080/api/profile/edit", {
-        method: "PUT",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) {
-        setMessage("Profil mis à jour avec succès.");
-        setTimeout(() => {
-          navigate(-1); // Retour à la page précédente
-        }, 2000);
-      } else {
-        const data = await response.json();
-        setMessage(data.error || "Erreur lors de la mise à jour.");
-      }
-    } catch (error) {
+      await updateProfile(token, payload);
+      setMessage("Profil mis à jour avec succès.");
+      setTimeout(() => {
+        navigate(-1); // Retour à la page précédente
+      }, 2000);
+    } catch (error: any) {
       console.error(error);
-      setMessage("Erreur lors de la requête.");
+      setMessage(error.message || "Erreur lors de la mise à jour.");
     }
   };
 

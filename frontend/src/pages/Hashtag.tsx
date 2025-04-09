@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Tweet from "../ui/tweet";
+import { getHashtagPosts } from "../api/getHashtagPosts";
 
 const Hashtag: React.FC = () => {
   const { tag } = useParams<{ tag: string }>();
@@ -17,21 +18,7 @@ const Hashtag: React.FC = () => {
       return;
     }
     setLoading(true);
-    fetch(`http://localhost:8080/api/hashtag/${tag}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token,
-      },
-    })
-      .then((res) =>
-        res.json().then((data) => {
-          if (!res.ok) {
-            throw new Error(data.error || "Erreur lors de la récupération des posts pour ce hashtag");
-          }
-          return data;
-        })
-      )
+    getHashtagPosts(token, tag || "")
       .then((data) => {
         setPosts(data.posts);
         setError("");
@@ -62,6 +49,7 @@ const Hashtag: React.FC = () => {
             profilePicture={post.profilePicture || "default-profile.png"}
             initialLikeCount={post.likeCount || 0}
             initialLiked={post.liked || false}
+            initialRetweetCount={post.retweetCount || 0}
             media={post.media}
             replies={post.replies}
             isOwner={post.editable}

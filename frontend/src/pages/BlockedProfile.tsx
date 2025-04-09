@@ -2,18 +2,20 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
+import { getBlockedUsers } from "../api/getBlockedUsers";
+import { unblockUser } from "../api/unblockUser";
 
 interface BlockedProfile {
   username: string;
   profilePicture: string;
 }
 
-const BlockedProfile: React.FC = () => {
+const BlockedUsers: React.FC = () => {
   const [blockedUsers, setBlockedUsers] = useState<BlockedProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
-  // Fonction pour récupérer la liste des utilisateurs bloqués
+  // Fonction pour récupérer la liste des utilisateurs bloqués via l'API
   const fetchBlockedUsers = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -21,20 +23,9 @@ const BlockedProfile: React.FC = () => {
       return;
     }
     try {
-      const response = await fetch("http://localhost:8080/api/profile/blocked", {
-        method: "GET",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!response.ok) {
-        throw new Error("Erreur lors du chargement des utilisateurs bloqués");
-      }
-      const data = await response.json();
-      // On attend un tableau d'objets avec username et profilePicture
-      setBlockedUsers(data.blockedUsers);
-    } catch (error) {
+      const users = await getBlockedUsers(token);
+      setBlockedUsers(users);
+    } catch (error: any) {
       console.error(error);
     } finally {
       setLoading(false);
@@ -45,7 +36,7 @@ const BlockedProfile: React.FC = () => {
     fetchBlockedUsers();
   }, []);
 
-  // Fonction pour débloquer un utilisateur
+  // Fonction pour débloquer un utilisateur via l'API
   const handleUnblock = async (username: string) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -53,17 +44,7 @@ const BlockedProfile: React.FC = () => {
       return;
     }
     try {
-      const response = await fetch(`http://localhost:8080/api/profile/${username}/block`, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!response.ok) {
-        throw new Error("Erreur lors du débloquage");
-      }
-      // On peut mettre à jour l'état en supprimant l'utilisateur débloqué
+      await unblockUser(token, username);
       setBlockedUsers((prevUsers) =>
         prevUsers.filter((user) => user.username !== username)
       );
@@ -80,7 +61,7 @@ const BlockedProfile: React.FC = () => {
     <div className="max-w-2xl mx-auto px-4">
       <h1 className="text-2xl font-bold mt-4 mb-4 text-white">Utilisateurs bloqués</h1>
       {blockedUsers.length === 0 ? (
-        <p className=" text-white">Aucun utilisateur bloqué.</p>
+        <p className="text-white">Aucun utilisateur bloqué.</p>
       ) : (
         <ul>
           {blockedUsers.map((user, index) => (
@@ -94,7 +75,7 @@ const BlockedProfile: React.FC = () => {
                   alt={user.username}
                   className="w-10 h-10 rounded-full"
                 />
-                <span className=" text-white">{user.username}</span>
+                <span className="text-white">{user.username}</span>
               </div>
               <Button
                 text="Débloquer"
@@ -109,4 +90,4 @@ const BlockedProfile: React.FC = () => {
   );
 };
 
-export default BlockedProfile;
+export default BlockedUsers;

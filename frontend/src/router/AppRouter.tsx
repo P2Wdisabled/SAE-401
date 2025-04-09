@@ -10,7 +10,7 @@ import Dashboard from "../pages/AdminDashboard";
 import EditAccount from "../pages/AdminEdit";
 import Profile from "../pages/Profile";
 import EditProfile from "../pages/EditProfile";
-import BlockedProfile from "../pages/BlockedProfile";
+import BlockedUsers from "../pages/BlockedProfile";
 import CensorDashboard from "../pages/CensorDashboard";
 import Settings from "../pages/Settings";
 import Hashtag from "../pages/Hashtag";
@@ -29,7 +29,7 @@ function AppRouter() {
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/profile/edit" element={<EditProfile />} />
-          <Route path="/profile/blocked" element={<BlockedProfile />} />
+          <Route path="/profile/blocked" element={<BlockedUsers />} />
           <Route path="/profile/:username" element={<Profile />} />
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/censor" element={<CensorDashboard />} />

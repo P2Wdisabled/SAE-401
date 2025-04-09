@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
+import { getAdminPosts } from '../api/getAdminPosts';
+import { toggleCensor as apiToggleCensor } from '../api/toggleCensor';
+import { deletePost as apiDeletePost } from '../api/deletePost';
 
 type Post = {
   id: number;
@@ -21,6 +24,7 @@ const CensorDashboard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
 
+  // Fonction pour charger les posts via l'API
   const fetchPosts = () => {
     setLoading(true);
     const token = localStorage.getItem("token");
@@ -28,60 +32,34 @@ const CensorDashboard: React.FC = () => {
       navigate("/landing");
       return;
     }
-    let url = `http://localhost:8080/admin/posts`;
-    if (search) {
-      url += `?search=${encodeURIComponent(search)}`;
-    }
-    fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token,
-      }
-    })
-      .then(res =>
-        res.json().then((data) => {
-          if (!res.ok) {
-            throw new Error(data.error || "Erreur lors de la récupération des posts");
-          }
-          return data;
-        })
-      )
-      .then(data => {
+    getAdminPosts(token, search)
+      .then((data) => {
         setPosts(data.posts);
         setError('');
       })
-      .catch(err => {
+      .catch((err) => {
         console.error(err);
         setError(err.message);
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchPosts();
-  }, [search]);
+  }, [search, navigate]);
 
+  // Bascule la censure d'un post
   const toggleCensor = async (postId: number) => {
     const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/landing");
+      return;
+    }
     try {
-      const response = await fetch(`http://localhost:8080/admin/posts/${postId}/toggle-censor`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token,
-        }
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        alert(data.error || "Erreur lors de la censure");
-        return;
-      }
+      const censored = await apiToggleCensor(token, postId);
       setPosts(prevPosts =>
         prevPosts.map(post =>
-          post.id === postId ? { ...post, censored: data.censored } : post
+          post.id === postId ? { ...post, censored } : post
         )
       );
     } catch (error) {
@@ -90,6 +68,7 @@ const CensorDashboard: React.FC = () => {
     }
   };
 
+  // Supprime un post
   const deletePost = async (postId: number) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -97,19 +76,7 @@ const CensorDashboard: React.FC = () => {
       return;
     }
     try {
-      const response = await fetch(`http://localhost:8080/admin/posts/${postId}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token,
-        }
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        alert(data.error || "Erreur lors de la suppression du post");
-        return;
-      }
-      // Supprime le post de la liste en local
+      await apiDeletePost(token, postId);
       setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
     } catch (error) {
       console.error(error);
@@ -119,7 +86,9 @@ const CensorDashboard: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4">
-      <h2 className="text-2xl text-white mb-4">Dashboard Admin - Gestion des contenus</h2>
+      <h2 className="text-2xl text-white mb-4">
+        Dashboard Admin - Gestion des contenus
+      </h2>
       <div className="mb-4">
         <input
           type="text"

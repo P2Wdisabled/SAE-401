@@ -1,7 +1,21 @@
+// src/components/Profile.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import Tweet from "../ui/tweet";
 import Button from "../ui/Button";
+import { getProfile } from "../api/getProfile";
+import { getPendingRequests } from "../api/getPendingRequests";
+import { getNotifications } from "../api/getNotifications";
+import { getLimitComments } from "../api/getLimitComments";
+import { markNotificationsRead } from "../api/markNotificationsRead";
+import { acceptFollowRequest } from "../api/acceptFollowRequest";
+import { declineFollowRequest } from "../api/declineFollowRequest";
+import { pinTweet } from "../api/pinTweet";
+import { unpinTweet } from "../api/unpinTweet";
+import { toggleFollow } from "../api/toggleFollow";
+import { toggleBlock } from "../api/toggleBlock";
+import { toggleCommentsLimit } from "../api/toggleCommentsLimit";
+import { useCheckToken } from "../components/Checker";
 
 const Profile: React.FC = () => {
   const { username } = useParams<{ username: string }>();
@@ -14,327 +28,182 @@ const Profile: React.FC = () => {
   const [blockError, setBlockError] = useState<string>("");
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [showPendingPopup, setShowPendingPopup] = useState<boolean>(false);
   const [showNotificationsPopup, setShowNotificationsPopup] = useState<boolean>(false);
-  // Flag pour éviter de recharger les pending et notifications plusieurs fois
   const [pendingLoaded, setPendingLoaded] = useState(false);
 
   const navigate = useNavigate();
+  useCheckToken();
 
-  const fetchProfile = useCallback(() => {
+  const fetchProfileData = useCallback(async () => {
     const token = localStorage.getItem("token");
-    if (!token) {
+    if (!token || !username) {
       navigate("/landing");
       return;
     }
     setLoading(true);
-    fetch(`http://localhost:8080/profile/${username}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token,
-      },
-    })
-      .then((res) =>
-        res.json().then((data) => {
-          if (!res.ok) {
-            throw new Error(data.error || "Erreur lors du chargement du profil");
-          }
-          return data;
-        })
-      )
-      .then((data) => {
-        setFollowError("");
-        setBlockError("");
-        setProfile(data.profile);
-        setPinnedTweet(data.pinnedTweet);
-        setTweets(data.tweets);
-        setFollowing(data.profile.followed);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
-  }, [username, navigate]);
+    try {
+      const data = await getProfile(username, token);
+      setFollowError("");
+      setBlockError("");
+      setProfile(data.profile);
+      setPinnedTweet(data.pinnedTweet);
+      setTweets(data.tweets);
+      setFollowing(data.profile.followed);
 
-  const fetchPendingRequests = useCallback(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    fetch("http://localhost:8080/api/profile/pending", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => setPendingRequests(data.pendingFollowRequests || []))
-      .catch((err) => console.error(err));
-  }, []);
-
-  const fetchNotifications = useCallback(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    fetch("http://localhost:8080/api/notifications", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => setNotifications(data.notifications || []))
-      .catch((err) => console.error(err));
-  }, []);
-
-  // Récupérer le statut de limitation des commentaires depuis l'endpoint dédié
-  // On l'exécute uniquement si profile est chargé et si la propriété n'a pas encore été définie
-  useEffect(() => {
-    if (profile && profile.editable && typeof profile.limitCommentsToSubscribers === "undefined") {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      fetch("http://localhost:8080/api/profile/limit", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token,
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          // L'endpoint renvoie { "limit": [ { "limited": boolean } ] }
-          const limited = data.limit && data.limit[0] && data.limit[0].limited;
+      // Si le profil est éditable et que l'option de limitation n'est pas définie, on la récupère
+      if (data.profile.editable && typeof data.profile.limitCommentsToSubscribers === "undefined") {
+        try {
+          const limited = await getLimitComments(token);
           setProfile((prev: any) => ({
             ...prev,
             limitCommentsToSubscribers: limited,
           }));
-        })
-        .catch((err) => console.error(err));
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-  }, [profile]);
+  }, [username, navigate]);
+
+  const loadPendingRequests = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const pending = await getPendingRequests(token);
+      setPendingRequests(pending);
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const notifs = await getNotifications(token);
+      setNotifications(notifs);
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    fetchProfileData();
+  }, [fetchProfileData]);
 
-  // Charger les pending et notifications une seule fois lorsque le profil de l'utilisateur connecté est chargé
   useEffect(() => {
     if (profile && profile.editable && !pendingLoaded) {
-      fetchPendingRequests();
-      fetchNotifications();
+      loadPendingRequests();
+      loadNotifications();
       setPendingLoaded(true);
     }
-  }, [profile, pendingLoaded, fetchPendingRequests, fetchNotifications]);
+  }, [profile, pendingLoaded, loadPendingRequests, loadNotifications]);
 
-  // Calculer le nombre total d'éléments non lus : notifications non lues + nombre de demandes pending
+  // Calcul du nombre total d’éléments non lus (notifications + demandes)
   const unreadCount =
     notifications.filter((notif: any) => !notif.isRead).length +
     pendingRequests.length;
 
-  // Lorsque le popup de notifications s'ouvre, marquer toutes les notifications comme lues
   useEffect(() => {
     if (showNotificationsPopup) {
       const token = localStorage.getItem("token");
       if (!token) return;
-      fetch("http://localhost:8080/api/notifications/read", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token,
-        },
-      })
-        .then((res) => res.json())
-        .then(() => fetchNotifications())
+      markNotificationsRead(token)
+        .then(() => loadNotifications())
         .catch((err) => console.error(err));
     }
-  }, [showNotificationsPopup, fetchNotifications]);
+  }, [showNotificationsPopup, loadNotifications]);
 
   const handleAcceptRequest = async (followerUsername: string) => {
     const token = localStorage.getItem("token");
+    if (!token) return;
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/profile/pending/${followerUsername}/accept`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        alert(data.error || "Erreur lors de l'acceptation de la demande");
-      } else {
-        alert(data.message);
-        fetchPendingRequests();
-        fetchNotifications();
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Erreur lors de l'acceptation de la demande");
+      const data = await acceptFollowRequest(token, followerUsername);
+      alert(data.message);
+      loadPendingRequests();
+      loadNotifications();
+    } catch (error: any) {
+      alert(error.message || "Erreur lors de l'acceptation de la demande");
     }
   };
 
   const handleDeclineRequest = async (followerUsername: string) => {
     const token = localStorage.getItem("token");
+    if (!token) return;
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/profile/pending/${followerUsername}/decline`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        alert(data.error || "Erreur lors du refus de la demande");
-      } else {
-        alert(data.message);
-        fetchPendingRequests();
-        fetchNotifications();
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Erreur lors du refus de la demande");
+      const data = await declineFollowRequest(token, followerUsername);
+      alert(data.message);
+      loadPendingRequests();
+      loadNotifications();
+    } catch (error: any) {
+      alert(error.message || "Erreur lors du refus de la demande");
     }
   };
 
   const handlePinTweet = async (tweetId: number) => {
     const token = localStorage.getItem("token");
+    if (!token || !username) return;
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/profile/${username}/pin/${tweetId}`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        alert(data.error || "Erreur lors de l'épinglage du tweet");
-      } else {
-        setPinnedTweet({ id: tweetId, ...data });
-      }
-    } catch (error) {
-      console.error("Erreur lors de l'épinglage du tweet", error);
-      alert("Erreur lors de l'épinglage du tweet");
+      const data = await pinTweet(token, username, tweetId);
+      setPinnedTweet({ id: tweetId, ...data });
+    } catch (error: any) {
+      alert(error.message || "Erreur lors de l'épinglage du tweet");
     }
   };
 
   const handleUnpinTweet = async () => {
     const token = localStorage.getItem("token");
+    if (!token || !username) return;
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/profile/${username}/unpin`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        alert(data.error || "Erreur lors du désépinglage du tweet");
-      } else {
-        setPinnedTweet(null);
-      }
-    } catch (error) {
-      console.error("Erreur lors du désépinglage du tweet", error);
-      alert("Erreur lors du désépinglage du tweet");
+      await unpinTweet(token, username);
+      setPinnedTweet(null);
+    } catch (error: any) {
+      alert(error.message || "Erreur lors du désépinglage du tweet");
     }
   };
 
-  const toggleFollow = async () => {
+  const handleToggleFollow = async () => {
     const token = localStorage.getItem("token");
+    if (!token || !username) return;
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/profile/${username}/follow`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        setFollowError(data.error || "Erreur lors du follow/unfollow");
+      const data = await toggleFollow(token, username);
+      if (data.message) {
+        alert(data.message);
       } else {
-        if (data.message) {
-          alert(data.message);
-        } else {
-          setFollowing(!following);
-        }
-        setFollowError("");
+        setFollowing(!following);
       }
-    } catch (error) {
-      console.error("Erreur lors du follow/unfollow", error);
-      setFollowError("Erreur lors du follow/unfollow");
+      setFollowError("");
+    } catch (error: any) {
+      setFollowError(error.message || "Erreur lors du follow/unfollow");
     }
   };
 
-  const toggleBlock = async () => {
+  const handleToggleBlock = async () => {
     const token = localStorage.getItem("token");
+    if (!token || !username) return;
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/profile/${username}/block`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        setBlockError(data.error || "Erreur lors du blocage/déblocage");
-      } else {
-        setBlockError("");
-      }
-    } catch (error) {
-      console.error("Erreur lors du blocage/déblocage", error);
-      setBlockError("Erreur lors du blocage/déblocage");
+      await toggleBlock(token, username);
+      setBlockError("");
+    } catch (error: any) {
+      setBlockError(error.message || "Erreur lors du blocage/déblocage");
     }
   };
 
-  // Fonction pour activer/désactiver l'option "Limiter les commentaires aux abonnés uniquement"
-  const toggleLimitComments = async () => {
+  const handleToggleCommentsLimit = async () => {
     const token = localStorage.getItem("token");
+    if (!token || !profile) return;
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/profile/toggle-comments-limit`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            limit: !profile.limitCommentsToSubscribers,
-          }),
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        alert(data.error || "Erreur lors de la mise à jour de l'option de commentaire");
-      } else {
-        setProfile({
-          ...profile,
-          limitCommentsToSubscribers: !profile.limitCommentsToSubscribers,
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour de l'option de commentaire", error);
-      alert("Erreur lors de la mise à jour de l'option de commentaire");
+      await toggleCommentsLimit(token, profile.limitCommentsToSubscribers);
+      setProfile({
+        ...profile,
+        limitCommentsToSubscribers: !profile.limitCommentsToSubscribers,
+      });
+    } catch (error: any) {
+      alert(error.message || "Erreur lors de la mise à jour de l'option de commentaire");
     }
   };
 
@@ -380,7 +249,7 @@ const Profile: React.FC = () => {
             )}
           </button>
         )}
-        {/* Popup combiné : notifications et demandes de suivi */}
+        {/* Popup pour notifications et demandes de suivi */}
         {showNotificationsPopup && (
           <div className="absolute top-12 right-0 bg-white text-black p-4 rounded shadow-lg z-50 max-h-80 overflow-y-auto">
             {pendingRequests.length > 0 && (
@@ -421,9 +290,7 @@ const Profile: React.FC = () => {
                 <div key={notif.id} className="mb-2 text-sm">
                   <span>{notif.content}</span>
                   <br />
-                  <span className="text-gray-500">
-                    {new Date(notif.createdAt).toLocaleString()}
-                  </span>
+                  <span className="text-gray-500">{new Date(notif.createdAt).toLocaleString()}</span>
                 </div>
               ))
             )}
@@ -467,14 +334,13 @@ const Profile: React.FC = () => {
                 moreClasses="text-white px-4 py-2 rounded"
                 bg="bg-red-500"
               />
-              {/* Bouton pour limiter les commentaires aux abonnés uniquement */}
               <Button
                 text={
                   profile.limitCommentsToSubscribers
                     ? "Désactiver limitation des commentaires"
                     : "Activer limitation des commentaires"
                 }
-                onClick={toggleLimitComments}
+                onClick={handleToggleCommentsLimit}
                 moreClasses="bg-indigo-500 text-white px-4 py-2 rounded mt-2"
               />
             </>
@@ -483,7 +349,7 @@ const Profile: React.FC = () => {
               <div className="relative">
                 <Button
                   text={following ? "Ne plus suivre" : "Suivre"}
-                  onClick={toggleFollow}
+                  onClick={handleToggleFollow}
                   moreClasses="bg-blue-500 text-white px-4 py-2 rounded"
                 />
                 {followError && (
@@ -495,7 +361,7 @@ const Profile: React.FC = () => {
               <div>
                 <Button
                   text="Bloquer"
-                  onClick={toggleBlock}
+                  onClick={handleToggleBlock}
                   moreClasses="bg-red-500 text-white px-4 py-2 rounded"
                 />
                 {blockError && (
@@ -534,7 +400,7 @@ const Profile: React.FC = () => {
                 />
                 <Button
                   text="Désépingler"
-                  onClick={() => handleUnpinTweet()}
+                  onClick={handleUnpinTweet}
                   moreClasses="bg-gray-600 text-white px-4 py-2 rounded mt-2"
                 />
               </div>
