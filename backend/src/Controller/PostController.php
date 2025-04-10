@@ -489,4 +489,103 @@ class PostController extends AbstractController
         return $this->json(['message' => 'Post déverrouillé avec succès.', 'locked' => false], Response::HTTP_OK);
     }
     // **********************************************************
+
+
+    #[Route('/api/hashtag/{tag}', name: 'api_hashtag_search', methods: ['GET'])]
+public function searchByHashtag(string $tag, PostRepository $postRepository): Response
+{
+    if (!$tag) {
+        return $this->json(['error' => 'Aucun hashtag fourni.'], Response::HTTP_BAD_REQUEST);
+    }
+
+    
+    $currentUser = $this->getUser();
+    $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
+    
+    // Utiliser la méthode findByHashtag du repository
+    $posts = $postRepository->findByHashtag($tag);
+    
+    $postsArray = [];
+        foreach ($posts as $post) {
+            $author = $post->getUser();
+            if (!$author) {
+                continue;
+            }
+            // Vérification du compte privé
+            if ($author->getPrivate()) {
+                if (
+                    !$currentUser instanceof \App\Entity\User ||
+                    ($currentUser->getId() !== $author->getId() && !$currentUser->getFollowing()->contains($author))
+                ) {
+                    continue;
+                }
+            }
+            
+            if ($post->getCensored()) {
+                $tweetData = [
+                    'id'             => $post->getId(),
+                    'username'       => $author->getUsername() ?? "Unnamed",
+                    'content'        => "Ce message enfreint les conditions d’utilisation de la plateforme",
+                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount'      => 0,
+                    'liked'          => false,
+                    'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
+                    'media'          => [],
+                    'replies'        => [],
+                    'censored'       => true,
+                    'locked'         => $post->isLocked(),
+                ];
+            } else {
+                $liked = false;
+                if ($currentUserId !== null) {
+                    foreach ($post->getLikes() as $like) {
+                        if ($like->getUser()->getId() === $currentUserId) {
+                            $liked = true;
+                            break;
+                        }
+                    }
+                }
+                $tweetData = [
+                    'id'             => $post->getId(),
+                    'username'       => $author->getUsername() ?? "Unnamed",
+                    'content'        => $author->getBlocked()
+                                        ? "Ce compte a été bloqué pour non respect des conditions d’utilisation"
+                                        : $post->getContent(),
+                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount'      => $author->getBlocked() ? 0 : $post->getLikesCount(),
+                    'retweetCount'   => $post->getRetweetCount(),
+                    'liked'          => $author->getBlocked() ? false : $liked,
+                    'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
+                    'media'          => $post->getMedia() ?: [],
+                    'censored'       => false,
+                    'locked'         => $post->isLocked(),
+                ];
+                if ($post->isLocked()) {
+                    // Si le tweet est verrouillé, ne pas renvoyer les réponses
+                    $tweetData['replies'] = [];
+                } else {
+                    $repliesArray = [];
+                    foreach ($post->getReplies() as $reply) {
+                        $repliesArray[] = [
+                            'id'             => $reply->getId(),
+                            'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
+                            'content'        => $reply->getContent(),
+                            'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+                            'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
+                            'media'          => $reply->getMedia() ?: [],
+                        ];
+                    }
+                    $tweetData['replies'] = $repliesArray;
+                }
+            }
+            $postsArray[] = $tweetData;
+        }
+
+        return $this->json([
+            'posts'         => $postsArray
+        ]);
+    
+    return $this->json($postsArray);
+}
+
 }
