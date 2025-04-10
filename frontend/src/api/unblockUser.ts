@@ -1,6 +1,8 @@
 // src/api/unblockUser.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function unblockUser(token: string, username: string): Promise<void> {
-    const response = await fetch(`http://localhost:8080/api/profile/${username}/block`, {
+    const response = await fetch(baseUrl+`api/profile/${username}/block`, {
       method: "POST",
       headers: {
         "Authorization": "Bearer " + token,

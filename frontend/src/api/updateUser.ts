@@ -1,10 +1,12 @@
 // src/api/updateUser.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function updateUser(
     token: string,
     id: string,
     payload: { username: string; email: string }
   ): Promise<any> {
-    const response = await fetch(`http://localhost:8080/users/${id}`, {
+    const response = await fetch(baseUrl+`users/${id}`, {
       method: "PUT", // ou "PATCH" selon votre API
       headers: {
         "Content-Type": "application/json",

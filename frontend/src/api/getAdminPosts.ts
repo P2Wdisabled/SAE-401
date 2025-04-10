@@ -1,6 +1,8 @@
 // src/api/getAdminPosts.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function getAdminPosts(token: string, search: string): Promise<any> {
-    let url = `http://localhost:8080/admin/posts`;
+    let url = baseUrl+`admin/posts`;
     if (search) {
       url += `?search=${encodeURIComponent(search)}`;
     }

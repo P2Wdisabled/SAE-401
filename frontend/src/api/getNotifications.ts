@@ -1,6 +1,8 @@
 // src/api/getNotifications.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function getNotifications(token: string): Promise<any[]> {
-    const response = await fetch("http://localhost:8080/api/notifications", {
+    const response = await fetch(baseUrl+"api/notifications", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

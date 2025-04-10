@@ -1,6 +1,8 @@
 // src/api/toggleCommentsLimit.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function toggleCommentsLimit(token: string, currentLimit: boolean): Promise<any> {
-    const response = await fetch(`http://localhost:8080/api/profile/toggle-comments-limit`, {
+    const response = await fetch(baseUrl+`api/profile/toggle-comments-limit`, {
       method: "POST",
       headers: {
         "Authorization": "Bearer " + token,

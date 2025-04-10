@@ -1,6 +1,8 @@
 // src/api/getPendingRequests.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function getPendingRequests(token: string): Promise<any[]> {
-    const response = await fetch("http://localhost:8080/api/profile/pending", {
+    const response = await fetch(baseUrl+"api/profile/pending", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

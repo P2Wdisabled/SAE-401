@@ -1,6 +1,8 @@
 // src/api/getLimitComments.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function getLimitComments(token: string): Promise<boolean> {
-    const response = await fetch("http://localhost:8080/api/profile/limit", {
+    const response = await fetch(baseUrl+"api/profile/limit", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

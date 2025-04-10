@@ -1,7 +1,9 @@
 // src/api/declineFollowRequest.ts
+
+const baseUrl = import.meta.env.VITE_API_URL;
 export async function declineFollowRequest(token: string, followerUsername: string): Promise<any> {
     const response = await fetch(
-      `http://localhost:8080/api/profile/pending/${followerUsername}/decline`,
+      baseUrl+`api/profile/pending/${followerUsername}/decline`,
       {
         method: "POST",
         headers: {

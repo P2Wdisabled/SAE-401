@@ -1,4 +1,6 @@
 // src/api/updateProfile.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function updateProfile(
     token: string,
     payload: {
@@ -9,7 +11,7 @@ export async function updateProfile(
       website: string;
     }
   ): Promise<any> {
-    const response = await fetch("http://localhost:8080/api/profile/edit", {
+    const response = await fetch(baseUrl+"api/profile/edit", {
       method: "PUT",
       headers: {
         "Authorization": "Bearer " + token,

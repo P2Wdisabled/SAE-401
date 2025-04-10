@@ -1,4 +1,6 @@
 // src/api/getPosts.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function getPosts(
     token: string,
     page: number,
@@ -10,8 +12,8 @@ export async function getPosts(
   ): Promise<any> {
     let url =
       activeTab === "abonnements"
-        ? `http://localhost:8080/api/posts?filter=following&page=${page}`
-        : `http://localhost:8080/api/posts?page=${page}`;
+        ? baseUrl+`api/posts?filter=following&page=${page}`
+        : baseUrl+`api/posts?page=${page}`;
   
     if (searchText) url += `&search=${encodeURIComponent(searchText)}`;
     if (filterDate) url += `&date=${encodeURIComponent(filterDate)}`;

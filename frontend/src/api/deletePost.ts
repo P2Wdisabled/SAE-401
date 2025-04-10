@@ -1,6 +1,8 @@
 // src/api/deletePost.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function deletePost(token: string, postId: number): Promise<void> {
-    const response = await fetch(`http://localhost:8080/admin/posts/${postId}`, {
+    const response = await fetch(baseUrl`admin/posts/${postId}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",

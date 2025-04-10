@@ -1,6 +1,8 @@
 // src/api/getProfile.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function getProfile(username: string, token: string): Promise<any> {
-    const response = await fetch(`http://localhost:8080/profile/${username}`, {
+    const response = await fetch(baseUrl+`profile/${username}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

@@ -1,6 +1,8 @@
 // src/api/getBlockedUsers.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function getBlockedUsers(token: string): Promise<any[]> {
-    const response = await fetch("http://localhost:8080/api/profile/blocked", {
+    const response = await fetch(baseUrl+"api/profile/blocked", {
       method: "GET",
       headers: {
         "Authorization": "Bearer " + token,

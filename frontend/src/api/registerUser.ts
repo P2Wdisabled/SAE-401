@@ -1,4 +1,6 @@
 // src/api/registerUser.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export type RegisterPayload = {
     username: string;
     email: string;
@@ -6,7 +8,7 @@ export type RegisterPayload = {
   };
   
   export async function registerUser(payload: RegisterPayload): Promise<Response> {
-    const response = await fetch("http://localhost:8080/register", {
+    const response = await fetch(baseUrl+"register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

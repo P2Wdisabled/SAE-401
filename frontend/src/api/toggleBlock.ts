@@ -1,6 +1,8 @@
 // src/api/toggleBlock.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function toggleBlock(token: string, username: string): Promise<any> {
-    const response = await fetch(`http://localhost:8080/api/profile/${username}/block`, {
+    const response = await fetch(baseUrl+`api/profile/${username}/block`, {
       method: "POST",
       headers: {
         "Authorization": "Bearer " + token,

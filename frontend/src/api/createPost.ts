@@ -1,11 +1,13 @@
 // src/api/createPost.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function createPost(
     content: string,
     media: string[],
     locked: boolean,
     token: string
   ): Promise<any> {
-    const response = await fetch("http://localhost:8080/api/posts", {
+    const response = await fetch(baseUrl+"api/posts", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

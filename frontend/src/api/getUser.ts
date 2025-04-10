@@ -1,6 +1,8 @@
 // src/api/getUser.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function getUser(token: string, id: string): Promise<any> {
-    const response = await fetch(`http://localhost:8080/users/${id}`, {
+    const response = await fetch(baseUrl+`users/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

@@ -1,6 +1,8 @@
 // src/api/getHashtagPosts.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function getHashtagPosts(token: string, tag: string): Promise<any> {
-    const response = await fetch(`http://localhost:8080/api/hashtag/${tag}`, {
+    const response = await fetch(baseUrl+`api/hashtag/${tag}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

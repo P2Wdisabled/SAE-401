@@ -1,11 +1,13 @@
 // src/api/updateProfileSettings.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 type SettingsData = {
     readOnly: boolean;
     private: boolean;
   };
   
   export async function updateProfileSettings(token: string, settings: SettingsData): Promise<any> {
-    const response = await fetch("http://localhost:8080/api/profile/settings", {
+    const response = await fetch(baseUrl+"api/profile/settings", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

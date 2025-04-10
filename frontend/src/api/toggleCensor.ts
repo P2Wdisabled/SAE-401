@@ -1,6 +1,8 @@
 // src/api/toggleCensor.ts
+const baseUrl = import.meta.env.VITE_API_URL;
+
 export async function toggleCensor(token: string, postId: number): Promise<boolean> {
-    const response = await fetch(`http://localhost:8080/admin/posts/${postId}/toggle-censor`, {
+    const response = await fetch(baseUrl+`admin/posts/${postId}/toggle-censor`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
