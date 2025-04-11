@@ -1,9 +1,10 @@
+const baseUrl = import.meta.env.VITE_API_URL;
 export async function replyTweet(
     token: string,
     tweetId: number,
     payload: { content: string, media: string[] }
   ): Promise<any> {
-    const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/reply`, {
+    const response = await fetch(baseUrl+`api/posts/${tweetId}/reply`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

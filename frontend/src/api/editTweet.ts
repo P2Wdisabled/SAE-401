@@ -1,9 +1,10 @@
+const baseUrl = import.meta.env.VITE_API_URL;
 export async function editTweet(
     token: string,
     tweetId: number,
     payload: { content: string, media: string[] }
   ): Promise<any> {
-    const response = await fetch(`http://localhost:8080/api/posts/${tweetId}`, {
+    const response = await fetch(baseUrl+`api/posts/${tweetId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

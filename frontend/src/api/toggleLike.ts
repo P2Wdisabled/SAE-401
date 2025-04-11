@@ -1,5 +1,6 @@
+const baseUrl = import.meta.env.VITE_API_URL;
 export async function toggleLike(token: string, tweetId: number): Promise<{ liked: boolean, likeCount: number }> {
-    const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/like`, {
+    const response = await fetch(baseUrl+`api/posts/${tweetId}/like`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

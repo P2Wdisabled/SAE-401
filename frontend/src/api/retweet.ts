@@ -1,5 +1,6 @@
+const baseUrl = import.meta.env.VITE_API_URL;
 export async function retweet(token: string, tweetId: number, comment?: string): Promise<{ retweetCount: number }> {
-    const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/retweet`, {
+    const response = await fetch(baseUrl+`api/posts/${tweetId}/retweet`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

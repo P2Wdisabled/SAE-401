@@ -1,5 +1,6 @@
+const baseUrl = import.meta.env.VITE_API_URL;
 export async function deleteTweet(token: string, tweetId: number): Promise<void> {
-    const response = await fetch(`http://localhost:8080/api/posts/${tweetId}`, {
+    const response = await fetch(baseUrl+`api/posts/${tweetId}`, {
       method: "DELETE",
       headers: {
         "Authorization": "Bearer " + token,
