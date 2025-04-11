@@ -8,7 +8,7 @@ type TweetListProps = {
   activeTab: "pourVous" | "abonnements";
 };
 
-// Hook de debounce générique
+// Generic debounce hook
 function useDebounce(value: string, delay: number): string {
   const [debouncedValue, setDebouncedValue] = useState(value);
   
@@ -30,7 +30,7 @@ function TweetList({ activeTab }: TweetListProps) {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
-  const refreshInterval = 5; // secondes
+  const refreshInterval = 5; // seconds
 
   const [searchText, setSearchText] = useState("");
   const debouncedSearchText = useDebounce(searchText, 500);
@@ -40,12 +40,12 @@ function TweetList({ activeTab }: TweetListProps) {
   const [filterUser, setFilterUser] = useState("");
   const debouncedFilterUser = useDebounce(filterUser, 500);
 
-  // Fonction générique pour récupérer les posts (en fonction de la page)
+  // Generic function to fetch posts (based on the page)
   const fetchPosts = async (pageNum: number) => {
     setLoading(true);
     const token = localStorage.getItem("token");
     if (!token) {
-      setError("Utilisateur non authentifié.");
+      setError("User not authenticated.");
       navigate("/landing");
       return;
     }
@@ -66,19 +66,19 @@ function TweetList({ activeTab }: TweetListProps) {
       if (newPosts.length < 50) setHasMore(false);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Erreur lors du chargement des posts.");
+      setError(err.message || "Error while loading posts.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Rafraîchit les posts (page 0) avec un délai minimum pour l'expérience utilisateur
+  // Refreshes posts (page 0) with a minimum delay for user experience
   const refreshPosts = async () => {
     const startTime = Date.now();
     setLoading(true);
     const token = localStorage.getItem("token");
     if (!token) {
-      setError("Utilisateur non authentifié.");
+      setError("User not authenticated.");
       navigate("/landing");
       setLoading(false);
       return;
@@ -99,7 +99,7 @@ function TweetList({ activeTab }: TweetListProps) {
       if (newPosts.length < 50) setHasMore(false);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Erreur lors du rafraîchissement des posts.");
+      setError(err.message || "Error while refreshing posts.");
     } finally {
       const elapsed = Date.now() - startTime;
       const minDuration = 2000;
@@ -108,7 +108,7 @@ function TweetList({ activeTab }: TweetListProps) {
     }
   };
 
-  // Charge les posts au montage et lors des changements de filtres
+  // Load posts on mount and when filters change
   useEffect(() => {
     setPosts([]);
     setPage(0);
@@ -116,12 +116,12 @@ function TweetList({ activeTab }: TweetListProps) {
     fetchPosts(0);
   }, [activeTab, debouncedSearchText, filterDate, filterType, debouncedFilterUser]);
 
-  // Charge la page suivante si nécessaire
+  // Load the next page if necessary
   useEffect(() => {
     if (page > 0) fetchPosts(page);
   }, [page]);
 
-  // Déclenche l'infini scrolling
+  // Trigger infinite scrolling
   useEffect(() => {
     const handleScroll = () => {
       const scrolledFromTop = window.innerHeight + document.documentElement.scrollTop;
@@ -134,7 +134,7 @@ function TweetList({ activeTab }: TweetListProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasMore, loading]);
 
-  // Gestion de l'auto-refresh
+  // Auto-refresh management
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
     if (autoRefreshEnabled) {
@@ -150,10 +150,10 @@ function TweetList({ activeTab }: TweetListProps) {
   };
 
   if (loading) {
-    return <div className="text-center mt-4">Chargement...</div>;
+    return <div className="text-center mt-4">Loading...</div>;
   }
   if (!error && posts.length === 0) {
-    return <div className="text-center mt-4">Aucun tweet à afficher.</div>;
+    return <div className="text-center mt-4">No tweets to display.</div>;
   }
 
   return (
@@ -166,7 +166,7 @@ function TweetList({ activeTab }: TweetListProps) {
         <div className="flex items-center gap-2">
           <input
             type="text"
-            placeholder="Rechercher..."
+            placeholder="Search..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             className="p-2 rounded w-full text-white"
@@ -184,13 +184,13 @@ function TweetList({ activeTab }: TweetListProps) {
             onChange={(e) => setFilterType(e.target.value)}
             className="p-2 rounded text-white"
           >
-            <option value="">Tous les types</option>
-            <option value="text">Texte</option>
-            <option value="media">Médias</option>
+            <option value="">All types</option>
+            <option value="text">Text</option>
+            <option value="media">Media</option>
           </select>
           <input
             type="text"
-            placeholder="Utilisateur"
+            placeholder="User"
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
             className="p-2 rounded text-white"
@@ -251,7 +251,7 @@ function TweetList({ activeTab }: TweetListProps) {
           onDelete={() => handleDelete(post.id)}
         />
       ))}
-      {loading && <p>Chargement...</p>}
+      {loading && <p>Loading...</p>}
     </main>
   );
 }

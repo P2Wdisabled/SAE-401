@@ -28,13 +28,13 @@ class PostRepository extends ServiceEntityRepository
             ->innerJoin('p.user', 'u')
             ->where('p.parent IS NULL');
     
-        // Recherche textuelle dans le contenu
+        // Text search in the content
         if ($search) {
             $qb->andWhere('p.content LIKE :search')
                ->setParameter('search', '%' . $search . '%');
         }
     
-        // Filtrage par date sur une journée donnée
+        // Filter by date for a given day
         if ($date) {
             try {
                 $dateObj = new \DateTime($date);
@@ -44,22 +44,22 @@ class PostRepository extends ServiceEntityRepository
                    ->setParameter('dateStart', $dateObj)
                    ->setParameter('dateEnd', $dateEnd);
             } catch (\Exception $e) {
-                // En cas d'erreur de conversion, on ignore ce filtre
+                // In case of conversion error, ignore this filter
             }
         }
     
-        // Filtre par type basé sur la longueur de la chaîne JSON stockée
+        // Type filter based on the length of the stored JSON string
         if ($type) {
             if ($type === 'media') {
-                // Supposé que p.media contient au moins un média si sa longueur > 2 (exemple : '["..."]')
+                // Assumes that p.media contains at least one media if its length > 2 (example: '["..."]')
                 $qb->andWhere('LENGTH(p.media) > 2');
             } elseif ($type === 'text') {
-                // Aucun média s'il n'y a que '[]' (longueur 2)
+                // No media if there is only '[]' (length 2)
                 $qb->andWhere('LENGTH(p.media) = 2');
             }
         }
     
-        // Filtre par utilisateur (recherche dans le nom)
+        // Filter by user (search in the name)
         if ($userParam) {
             $qb->andWhere('u.username LIKE :username')
                ->setParameter('username', '%' . $userParam . '%');
@@ -104,7 +104,7 @@ class PostRepository extends ServiceEntityRepository
                    ->setParameter('dateStart', $dateObj)
                    ->setParameter('dateEnd', $dateEnd);
             } catch (\Exception $e) {
-                // Ignorer le filtre de date en cas de problème
+                // Ignore the date filter in case of an issue
             }
         }
     
@@ -130,9 +130,9 @@ class PostRepository extends ServiceEntityRepository
         return new Paginator($query);
     }
     /**
-     * Recherche les posts dont le contenu contient le hashtag spécifié.
+     * Search for posts whose content contains the specified hashtag.
      *
-     * @param string $tag Le hashtag (sans le symbole #)
+     * @param string $tag The hashtag (without the # symbol)
      * @return Post[]
      */
     public function findByHashtag(string $tag): array

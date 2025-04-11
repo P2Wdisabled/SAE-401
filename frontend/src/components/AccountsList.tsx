@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Profile from "../ui/Profile";
 import Button from "../ui/Button";
+const baseUrl = import.meta.env.VITE_API_URL;
 
 function AccountsList() {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -17,7 +18,7 @@ function AccountsList() {
       setError("Utilisateur non authentifié.");
       return;
     }
-    fetch(`http://localhost:8080/users/Accounts?page=${pageNum}`, {
+    fetch(baseUrl+`users/Accounts?page=${pageNum}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -79,7 +80,7 @@ function AccountsList() {
   const toggleBlock = async (id: number) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`http://localhost:8080/admin/users/${id}/toggle-block`, {
+      const response = await fetch(baseUrl+`admin/users/${id}/toggle-block`, {
         method: "POST",
         headers: {
           "Authorization": "Bearer " + token,
@@ -111,7 +112,6 @@ function AccountsList() {
             <Button 
               text={account.blocked ? "Débloquer" : "Bloquer"} 
               onClick={() => toggleBlock(account.id)}
-              moreClasses="bg-red-500 text-white px-4 py-2 rounded"
             />
           </div>
         </div>

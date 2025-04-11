@@ -20,7 +20,7 @@ function Login() {
     setError("");
 
     if (!isEmailValid(email) || !isPasswordValid(password)) {
-      setError("Email ou mot de passe incorrect");
+      setError("Incorrect email or password");
       return;
     }
 
@@ -31,8 +31,8 @@ function Login() {
       localStorage.setItem("token", data.token);
       navigate("/");
     } catch (err: any) {
-      console.error("Erreur lors de la requête:", err);
-      setError(err.message || "Email ou mot de passe incorrect");
+      console.error("Error during request:", err);
+      setError(err.message || "Incorrect email or password");
     }
   };
 
@@ -43,7 +43,7 @@ function Login() {
   return (
     <div className="min-h-screen bg-[#17202A] text-white flex flex-col items-center justify-center p-4">
       <h1 className="text-2xl font-bold mb-8 max-w-xl">
-        Pour Commencer, entrez votre numéro de téléphone, votre adresse email ou votre nom d’utilisateur
+        To begin, enter your phone number, email address, or username
       </h1>
 
       <form className="w-full max-w-sm flex flex-col gap-4 mb-8" onSubmit={handleSubmit}>
@@ -55,7 +55,7 @@ function Login() {
         />
 
         <FormInput
-          label="Mot de passe"
+          label="Password"
           type="password"
           value={password}
           onChange={handlePasswordChange}
@@ -66,12 +66,12 @@ function Login() {
         <div className="flex w-full max-w-sm justify-between">
           <Button 
             page="/landing" 
-            text="Retour" 
+            text="Back" 
             variant="outline"
             size="small"
           />
           <Button 
-            text="Se connecter" 
+            text="Sign In" 
             buttonType="submit" 
             variant="white" 
             size="small"

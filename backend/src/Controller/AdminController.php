@@ -17,7 +17,7 @@ use Symfony\Component\Routing\Annotation\Route;
 class AdminController extends AbstractController
 {
     /**
-     * Vérifie que l'utilisateur est connecté et est admin.
+     * Checks that the user is logged in and is an admin.
      */
     private function ensureAdmin(): ?Response
     {
@@ -53,7 +53,7 @@ class AdminController extends AbstractController
                 'id'       => $user->getId(),
                 'username' => $user->getUsername() ?? "Unnamed",
                 'email'    => $user->getEmail(),
-                'blocked'  => $user->getBlocked(), // Statut de blocage
+                'blocked'  => $user->getBlocked(), // Blocking status
             ];
         }
 
@@ -155,14 +155,14 @@ class AdminController extends AbstractController
             return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
         }
         
-        // Inverse l'état de blocage
+        // Toggle the block status
         $user->setBlocked(!$user->getBlocked());
         $em->flush();
         
         return $this->json([
             'id'      => $user->getId(),
             'blocked' => $user->getBlocked(),
-            'message' => $user->getBlocked() ? "Compte bloqué pour non respect des conditions d'utilisation." : "Compte débloqué."
+            'message' => $user->getBlocked() ? "Account blocked for non-compliance with terms of use." : "Account unblocked."
         ]);
     }
 
@@ -172,7 +172,7 @@ class AdminController extends AbstractController
         PostRepository $postRepository,
         EntityManagerInterface $em
     ): Response {
-        // Vérification des droits admin
+        // Verify admin rights
         $currentUser = $this->getUser();
         if (!$currentUser || !in_array('ROLE_ADMIN', $currentUser->getRoles())) {
             return $this->json(['error' => 'Access denied'], Response::HTTP_FORBIDDEN);
@@ -183,18 +183,18 @@ class AdminController extends AbstractController
             return $this->json(['error' => 'Post not found'], Response::HTTP_NOT_FOUND);
         }
         
-        // Basculer l'état censuré
+        // Toggle the censored state
         $post->setCensored(!$post->getCensored());
         $em->flush();
         
         return $this->json([
             'id' => $post->getId(),
             'censored' => $post->getCensored(),
-            'message' => $post->getCensored() ? "Contenu censuré." : "Contenu débloqué."
+            'message' => $post->getCensored() ? "Content censored." : "Content uncensored."
         ]);
     }
 
-    // Nouvelle route pour récupérer les posts à modérer par l'admin (pour le dashboard de censure)
+    // New route to retrieve posts to be moderated by the admin (for the censor dashboard)
     #[Route('/admin/posts', name: 'admin_posts', methods: ['GET'], format: 'json')]
 public function getPosts(Request $request, PostRepository $postRepository): Response
 {
@@ -204,10 +204,10 @@ public function getPosts(Request $request, PostRepository $postRepository): Resp
     
     $search = $request->query->get('search', '');
     
-    // Récupérer tous les posts. Pour une version de production, pensez à paginer et optimiser la requête.
+    // Retrieve all posts. For a production version, consider paginating and optimizing the query.
     $posts = $postRepository->findAll();
 
-    // Filtrer par recherche si besoin
+    // Filter by search if needed
     if ($search) {
         $posts = array_filter($posts, function($post) use ($search) {
             return stripos($post->getContent(), $search) !== false;
@@ -220,9 +220,9 @@ public function getPosts(Request $request, PostRepository $postRepository): Resp
             'username'  => $post->getUser() ? $post->getUser()->getUsername() : 'Unknown',
             'content'   => $post->getContent(),
             'censored'  => $post->getCensored(),
-            'likeCount' => $post->getLikesCount(), // Assurez-vous que cette méthode est définie
-            'media'     => $post->getMedia(),       // Cette méthode doit retourner un tableau (par exemple d'URLs)
-            // Pour éviter la référence circulaire, on mappe manuellement les réponses
+            'likeCount' => $post->getLikesCount(), // Make sure this method is defined
+            'media'     => $post->getMedia(),       // This method should return an array (e.g., of URLs)
+            // To avoid circular reference, we manually map the replies
             'replies'   => array_map(function($reply) {
                 return [
                     'id'        => $reply->getId(),
@@ -246,7 +246,7 @@ public function deletePost(
     PostRepository $postRepository,
     EntityManagerInterface $em
 ): Response {
-    // Vérifier que l'utilisateur est admin
+    // Verify that the user is an admin
     $currentUser = $this->getUser();
     if (!$currentUser || !in_array('ROLE_ADMIN', $currentUser->getRoles())) {
         return $this->json(['error' => 'Access denied'], Response::HTTP_FORBIDDEN);
@@ -257,35 +257,35 @@ public function deletePost(
         return $this->json(['error' => 'Post not found'], Response::HTTP_NOT_FOUND);
     }
     
-    // Supprimer tous les likes associés au post
+    // Remove all likes associated with the post
     foreach ($post->getLikes() as $like) {
         $em->remove($like);
     }
     
-    // Supprimer récursivement tous les commentaires (réponses) et leurs likes associés
+    // Recursively remove all comments (replies) and their associated likes
     $this->removeRepliesRecursively($post, $em);
     
-    // Supprimer le post lui-même
+    // Remove the post itself
     $em->remove($post);
     $em->flush();
     
-    return $this->json(['message' => 'Post et ses likes/réponses ont été supprimés avec succès']);
+    return $this->json(['message' => 'Post and its likes/replies have been deleted successfully']);
 }
 
 /**
- * Supprime récursivement tous les commentaires (réponses) d'un post,
- * ainsi que les likes associés à chacun d'eux.
+ * Recursively remove all comments (replies) of a post,
+ * as well as the likes associated with each.
  */
 private function removeRepliesRecursively(Post $post, EntityManagerInterface $em): void
 {
     foreach ($post->getReplies() as $reply) {
-        // Supprimer les likes du commentaire
+        // Remove the likes of the comment
         foreach ($reply->getLikes() as $like) {
             $em->remove($like);
         }
-        // Appel récursif pour supprimer les réponses imbriquées
+        // Recursive call to remove nested replies
         $this->removeRepliesRecursively($reply, $em);
-        // Supprimer le commentaire lui-même
+        // Remove the comment itself
         $em->remove($reply);
     }
 }

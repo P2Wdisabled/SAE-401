@@ -34,7 +34,7 @@ function AppRouter() {
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/censor" element={<CensorDashboard />} />
           <Route path="/admin/edit/:id" element={<EditAccount />} />
-          <Route path="*" element={<h2 className="text-white">Page non trouvée</h2>} />
+          <Route path="*" element={<h2 className="text-white">Page not found</h2>} />
         </Routes>
       </div>
     </BrowserRouter>

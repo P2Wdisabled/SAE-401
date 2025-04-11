@@ -22,7 +22,7 @@ class PostService
         $post->setContent($payload->getContent());
         $post->setCreatedAt(new \DateTime());
         $post->setUser($user);
-        // Affectation du champ media avec les URLs récupérées depuis le payload
+        // Assignment of the media field with URLs retrieved from the payload
         $post->setMedia($payload->getMedia());
 
         $this->entityManager->persist($post);

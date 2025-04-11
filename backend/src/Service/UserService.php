@@ -13,23 +13,23 @@ class UserService
 
     public function generateTokenForUser(User $user): string
     {
-        // Génération d'un token brut
+        // Generate a raw token
         $rawToken = bin2hex(random_bytes(32));
         
-        // Hachage du token pour le stockage (il ne sera plus récupérable une fois inséré en base)
+        // Hash the token for storage (it will not be retrievable once stored in the database)
         $hashedToken = hash('sha256', $rawToken);
         
-        // Création de l'entité ApiToken
+        // Create the ApiToken entity
         $apiToken = new ApiToken();
         $apiToken->setToken($hashedToken);
-        // Par exemple, expiration dans 1 heure
+        // For example, expires in 5 hour
         $apiToken->setExpiresAt((new \DateTimeImmutable())->modify('+5 hour'));
         $apiToken->setUser($user);
         
         $this->em->persist($apiToken);
         $this->em->flush();
         
-        // Le token brut est renvoyé au front
+        // The raw token is returned to the frontend
         return $rawToken;
     }
 }

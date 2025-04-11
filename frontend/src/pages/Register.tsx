@@ -16,17 +16,17 @@ function Register() {
   useCheckToken();
   const navigate = useNavigate();
 
-  // Soumission du formulaire
+  // Form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!isEmailValid(email)) {
-      alert("Email non valide");
+      alert("Invalid email");
       return;
     }
 
     if (!isPasswordValid(password)) {
-      alert("Le mot de passe ne respecte pas la politique de sécurité");
+      alert("The password does not meet the security policy");
       return;
     }
 
@@ -38,12 +38,12 @@ function Register() {
         navigate("/login");
       }
     } catch (error: any) {
-      console.error("Erreur lors de la requête:", error);
-      alert(error.message || "Erreur lors de l'inscription");
+      console.error("Error during the request:", error);
+      alert(error.message || "Error during registration");
     }
   };
 
-  // Gestion en temps réel de la force du mot de passe
+  // Real-time password strength management
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const pwd = e.target.value;
     setPassword(pwd);
@@ -52,11 +52,11 @@ function Register() {
 
   return (
     <div className="min-h-screen bg-[#17202A] text-white flex flex-col items-center justify-center p-4">
-      <h1 className="text-2xl font-bold mb-8">Créer votre compte</h1>
+      <h1 className="text-2xl font-bold mb-8">Create your account</h1>
 
       <form className="w-full max-w-sm flex flex-col gap-4 mb-8" onSubmit={handleSubmit}>
         <FormInput
-          label="Nom d'utilisateur"
+          label="Username"
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -70,7 +70,7 @@ function Register() {
         />
 
         <FormInput
-          label="Mot de passe"
+          label="Password"
           type="password"
           value={password}
           onChange={handlePasswordChange}
@@ -78,13 +78,13 @@ function Register() {
 
         {password && (
           <div className="text-sm">
-            Force du mot de passe : <span>{passwordStrength}</span>
+            Password strength: <span>{passwordStrength}</span>
           </div>
         )}
 
         <div className="flex w-full max-w-sm justify-between">
-          <Button page="/landing" buttonType="button" variant="outline" size="small" text="Retour" />
-          <Button buttonType="submit" variant="white" size="small" text="S'inscrire" />
+          <Button page="/landing" buttonType="button" variant="outline" size="small" text="Back" />
+          <Button buttonType="submit" variant="white" size="small" text="Sign up" />
         </div>
       </form>
     </div>

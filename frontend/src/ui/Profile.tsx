@@ -6,16 +6,16 @@ type ProfileProps = {
   id: number | string;
   username: string;
   email: string;
-  avatarColor: string; // ex: "bg-gray-400"
+  avatarColor: string; // e.g.: "bg-gray-400"
 };
 
 function Profile({ id, username, email, avatarColor }: ProfileProps) {
   return (
     <article className="flex justify-around items-center gap-3 py-3 border-b border-gray-600">
-      {/* Avatar simulé par un cercle coloré */}
+      {/* Simulated avatar represented by a colored circle */}
       <div className={`rounded-full w-10 h-10 ${avatarColor}`} />
 
-      {/* Zone de texte */}
+      {/* Text area */}
       <div>
         <p className="text-white font-semibold">{username}</p>
         <p className="text-gray-300 text-lg">{email}</p>
@@ -41,7 +41,6 @@ function Profile({ id, username, email, avatarColor }: ProfileProps) {
             />
           </svg>
         }
-        bg="bg-transparent"
       />
     </article>
   );

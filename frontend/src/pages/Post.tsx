@@ -20,13 +20,13 @@ function Post() {
   useCheckToken();
   const navigate = useNavigate();
 
-  // Limiter le nombre de caractères à 280
+  // Limit the number of characters to 280
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = event.target.value;
     setText(newValue.slice(0, 280));
   };
 
-  // Gérer le changement des fichiers médias et déclencher leur upload
+  // Handle the change of media files and trigger their upload
   const handleMediaChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (!selectedFiles) return;
@@ -40,31 +40,31 @@ function Post() {
 
     const token = localStorage.getItem("token");
     if (!token) {
-      setError("Utilisateur non authentifié.");
+      setError("User not authenticated.");
       return;
     }
 
-    // Upload de chaque fichier et mise à jour de l’état
+    // Upload each file and update the state
     for (let i = 0; i < newMediaFiles.length; i++) {
       try {
         const url = await uploadMediaFile(newMediaFiles[i].file, token);
         newMediaFiles[i].uploadedUrl = url;
         setMediaFiles([...newMediaFiles]);
       } catch (err) {
-        console.error("Erreur lors de l'upload :", err);
+        console.error("Error during upload:", err);
       }
     }
   };
 
-  // Gérer la soumission du post
+  // Handle post submission
   const handleSubmit = async () => {
     if (text.trim().length === 0) {
-      setError("Le post ne peut pas être vide.");
+      setError("The post cannot be empty.");
       return;
     }
     const token = localStorage.getItem("token");
     if (!token) {
-      setError("Utilisateur non authentifié.");
+      setError("User not authenticated.");
       return;
     }
     try {
@@ -74,23 +74,23 @@ function Post() {
       await createPost(text, mediaUrls, locked, token);
       navigate("/");
     } catch (err: any) {
-      console.error("Erreur lors de la requête :", err);
-      setError(err.message || "Erreur réseau, veuillez réessayer plus tard.");
+      console.error("Error during request:", err);
+      setError(err.message || "Network error, please try again later.");
     }
   };
 
   return (
     <div className="bg-[#17202A] min-h-screen text-white flex flex-col">
       <header className="flex items-center justify-between p-4 border-b border-gray-700">
-        {/* Bouton de fermeture avec la variante "icon" */}
+        {/* Close button with the "icon" variant */}
         <Button
           page="/"
           text="&#10005;"
           variant="icon"
         />
-        {/* Bouton pour poster avec la variante "primary" et taille "small" */}
+        {/* Button to post with the "primary" variant and "small" size */}
         <Button
-          text="Poster"
+          text="Post"
           variant="primary"
           size="small"
           onClick={handleSubmit}
@@ -101,7 +101,7 @@ function Post() {
         <div className="w-full max-w-md border border-gray-600 p-2 relative">
           <textarea
             className="w-full h-64 bg-transparent text-white outline-none resize-none placeholder-gray-400"
-            placeholder="Quoi de neuf ?"
+            placeholder="What's new?"
             maxLength={280}
             value={text}
             onChange={handleChange}
@@ -118,7 +118,7 @@ function Post() {
               onChange={(e) => setLocked(e.target.checked)}
               className="mr-2"
             />
-            <label htmlFor="lock-tweet">Verrouiller le tweet</label>
+            <label htmlFor="lock-tweet">Lock the tweet</label>
           </div>
 
           <div className="mt-4">
@@ -126,7 +126,7 @@ function Post() {
               htmlFor="media-upload"
               className="cursor-pointer inline-block bg-gray-700 p-2 rounded"
             >
-              Sélectionner des fichiers
+              Select files
             </label>
             <input
               id="media-upload"

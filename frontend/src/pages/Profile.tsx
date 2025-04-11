@@ -50,7 +50,7 @@ const Profile: React.FC = () => {
       setTweets(data.tweets);
       setFollowing(data.profile.followed);
 
-      // Si le profil est éditable et que l'option de limitation n'est pas définie, on la récupère
+      // If the profile is editable and the comment limit option is not defined, retrieve it
       if (data.profile.editable && typeof data.profile.limitCommentsToSubscribers === "undefined") {
         try {
           const limited = await getLimitComments(token);
@@ -103,7 +103,7 @@ const Profile: React.FC = () => {
     }
   }, [profile, pendingLoaded, loadPendingRequests, loadNotifications]);
 
-  // Calcul du nombre total d’éléments non lus (notifications + demandes)
+  // Calculate the total number of unread items (notifications + requests)
   const unreadCount =
     notifications.filter((notif: any) => !notif.isRead).length +
     pendingRequests.length;
@@ -127,7 +127,7 @@ const Profile: React.FC = () => {
       loadPendingRequests();
       loadNotifications();
     } catch (error: any) {
-      alert(error.message || "Erreur lors de l'acceptation de la demande");
+      alert(error.message || "Error accepting follow request");
     }
   };
 
@@ -140,7 +140,7 @@ const Profile: React.FC = () => {
       loadPendingRequests();
       loadNotifications();
     } catch (error: any) {
-      alert(error.message || "Erreur lors du refus de la demande");
+      alert(error.message || "Error declining follow request");
     }
   };
 
@@ -151,7 +151,7 @@ const Profile: React.FC = () => {
       const data = await pinTweet(token, username, tweetId);
       setPinnedTweet({ id: tweetId, ...data });
     } catch (error: any) {
-      alert(error.message || "Erreur lors de l'épinglage du tweet");
+      alert(error.message || "Error pinning tweet");
     }
   };
 
@@ -162,7 +162,7 @@ const Profile: React.FC = () => {
       await unpinTweet(token, username);
       setPinnedTweet(null);
     } catch (error: any) {
-      alert(error.message || "Erreur lors du désépinglage du tweet");
+      alert(error.message || "Error unpinning tweet");
     }
   };
 
@@ -178,7 +178,7 @@ const Profile: React.FC = () => {
       }
       setFollowError("");
     } catch (error: any) {
-      setFollowError(error.message || "Erreur lors du follow/unfollow");
+      setFollowError(error.message || "Error following/unfollowing");
     }
   };
 
@@ -189,7 +189,7 @@ const Profile: React.FC = () => {
       await toggleBlock(token, username);
       setBlockError("");
     } catch (error: any) {
-      setBlockError(error.message || "Erreur lors du blocage/déblocage");
+      setBlockError(error.message || "Error blocking/unblocking");
     }
   };
 
@@ -203,7 +203,7 @@ const Profile: React.FC = () => {
         limitCommentsToSubscribers: !profile.limitCommentsToSubscribers,
       });
     } catch (error: any) {
-      alert(error.message || "Erreur lors de la mise à jour de l'option de commentaire");
+      alert(error.message || "Error updating comment option");
     }
   };
 
@@ -212,24 +212,24 @@ const Profile: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center mt-4">Chargement...</div>;
+    return <div className="text-center mt-4">Loading...</div>;
   }
   if (!profile) {
     return (
       <div className="text-center mt-4 text-red-500">
-        Erreur de chargement du profil
+        Error loading profile
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto relative">
-      {/* Bannière et photo de profil */}
+      {/* Banner and Profile Picture */}
       <div className="relative">
-        <img src={profile.banner} alt="Bannière" className="w-full h-48 object-cover" />
+        <img src={profile.banner} alt="Banner" className="w-full h-48 object-cover" />
         <img
           src={profile.profilePicture}
-          alt="Photo de profil"
+          alt="Profile picture"
           className="absolute bottom-0 left-4 w-24 h-24 rounded-full border-4 border-white transform translate-y-1/2"
         />
         {profile.editable && (
@@ -237,7 +237,7 @@ const Profile: React.FC = () => {
             onClick={() => setShowNotificationsPopup(!showNotificationsPopup)}
             className="absolute top-4"
             style={{ right: "-40px" }}
-            title="Notifications et demandes de suivi"
+            title="Notifications and follow requests"
           >
             <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
               <path d="M12 22c1.104 0 2-.897 2-2H10c0 1.103.896 2 2 2zm6-6V11c0-3.309-2.691-6-6-6S6 7.691 6 11v5l-2 2v1h16v-1l-2-2zm-2 .001H8V11c0-2.206 1.794-4 4-4s4 1.794 4 4v5z" />
@@ -249,12 +249,12 @@ const Profile: React.FC = () => {
             )}
           </button>
         )}
-        {/* Popup pour notifications et demandes de suivi */}
+        {/* Popup for notifications and follow requests */}
         {showNotificationsPopup && (
           <div className="absolute top-12 right-0 bg-white text-black p-4 rounded shadow-lg z-50 max-h-80 overflow-y-auto">
             {pendingRequests.length > 0 && (
               <>
-                <h3 className="font-bold mb-2">Demandes de suivi</h3>
+                <h3 className="font-bold mb-2">Follow Requests</h3>
                 {pendingRequests.map((req: any) => (
                   <div key={req.username} className="flex items-center gap-2 mb-2">
                     <img
@@ -263,17 +263,17 @@ const Profile: React.FC = () => {
                       className="w-8 h-8 rounded-full"
                     />
                     <span className="flex-1 text-sm">
-                      <strong>{req.username}</strong> souhaite s'abonner à vous !
+                      <strong>{req.username}</strong> wants to follow you!
                     </span>
                     <div className="flex gap-1">
                       <Button
-                        text="Accepter"
+                        text="Accept"
                         onClick={() => handleAcceptRequest(req.username)}
                         variant="success"
                         size="small"
                       />
                       <Button
-                        text="Refuser"
+                        text="Decline"
                         onClick={() => handleDeclineRequest(req.username)}
                         variant="danger"
                         size="small"
@@ -286,7 +286,7 @@ const Profile: React.FC = () => {
             )}
             <h3 className="font-bold mb-2">Notifications</h3>
             {notifications.length === 0 ? (
-              <p>Aucune notification.</p>
+              <p>No notifications.</p>
             ) : (
               notifications.map((notif: any) => (
                 <div key={notif.id} className="mb-2 text-sm">
@@ -302,7 +302,7 @@ const Profile: React.FC = () => {
               className="mt-2 text-blue-500 underline text-sm"
               onClick={() => setShowNotificationsPopup(false)}
             >
-              Fermer
+              Close
             </button>
           </div>
         )}
@@ -343,7 +343,7 @@ const Profile: React.FC = () => {
                 size="small"
               />
               <Button
-                text="Liste des utilisateurs bloqués"
+                text="Blocked Users List"
                 page="/profile/blocked"
                 variant="danger"
                 size="small"
@@ -398,7 +398,7 @@ const Profile: React.FC = () => {
             <div className="flex flex-row gap-2">
               <div className="relative">
                 <Button
-                  text={following ? "Ne plus suivre" : "Suivre"}
+                  text={following ? "Unfollow" : "Follow"}
                   onClick={handleToggleFollow}
                   variant="primary"
                   size="small"
@@ -411,7 +411,7 @@ const Profile: React.FC = () => {
               </div>
               <div>
                 <Button
-                  text="Bloquer"
+                  text="Block"
                   onClick={handleToggleBlock}
                   variant="danger"
                   size="small"
@@ -427,14 +427,14 @@ const Profile: React.FC = () => {
       {profile.private && !profile.editable && !following ? (
         <div className="mt-4 px-4">
           <p className="text-white">
-            Ce compte est privé. Envoyez une demande de suivi pour voir les tweets.
+            This account is private. Send a follow request to see the tweets.
           </p>
         </div>
       ) : (
         <>
           {profile.editable && pinnedTweet && (
             <div className="mt-4 px-4">
-              <h2 className="text-xl font-semibold text-white">Tweet épinglé</h2>
+              <h2 className="text-xl font-semibold text-white">Pinned Tweet</h2>
               <div className="mb-4">
                 <Tweet
                   tweetId={pinnedTweet.id}
@@ -466,7 +466,7 @@ const Profile: React.FC = () => {
           <div className="mt-4 px-4">
             <h2 className="text-xl font-semibold mb-2 text-white">Tweets</h2>
             {tweets.length === 0 ? (
-              <p className="text-white">Aucun tweet à afficher.</p>
+              <p className="text-white">No tweets to display.</p>
             ) : (
               tweets.map((tweet, index) => (
                 <div key={tweet.id || index}>

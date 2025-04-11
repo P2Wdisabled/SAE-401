@@ -28,7 +28,7 @@ class SecurityController extends AbstractController
             $data = $request->toArray();
         } catch (JsonException $e) {
             return $this->json(
-                ['error' => 'Données JSON invalides.'],
+                ['error' => 'Invalid JSON data.'],
                 JsonResponse::HTTP_BAD_REQUEST
             );
         }
@@ -39,7 +39,7 @@ class SecurityController extends AbstractController
 
         if (!$email || !$username || !$plainPassword) {
             return $this->json(
-                ['error' => 'Email, username et mot de passe sont requis.'],
+                ['error' => 'Email, username, and password are required.'],
                 JsonResponse::HTTP_BAD_REQUEST
             );
         }
@@ -47,7 +47,7 @@ class SecurityController extends AbstractController
         $existingUser = $em->getRepository(User::class)->findOneBy(['email' => $email]);
         if ($existingUser) {
             return $this->json(
-                ['error' => 'Cet email est déjà utilisé.'],
+                ['error' => 'This email is already in use.'],
                 JsonResponse::HTTP_CONFLICT
             );
         }
@@ -65,7 +65,7 @@ class SecurityController extends AbstractController
         
         return $this->json(
             [
-                'message' => 'Inscription réussie.',
+                'message' => 'Registration successful.',
                 'token'   => $token,
             ],
             JsonResponse::HTTP_CREATED
@@ -75,18 +75,18 @@ class SecurityController extends AbstractController
     #[Route('/login', name: 'app_login', methods: ['POST'], defaults: ['_format' => 'json'])]
     public function login(#[CurrentUser] ?User $user, UserService $userService): JsonResponse
     {
-        // Si l'utilisateur n'est pas authentifié, on renvoie une erreur
+        // If the user is not authenticated, return an error
         if (!$user) {
             return $this->json(
-                ['error' => 'Identifiants invalides.'],
+                ['error' => 'Invalid credentials.'],
                 JsonResponse::HTTP_UNAUTHORIZED
             );
         }
         
-        // Vérification du statut de blocage
+        // Check for blocked status
         if ($user->getBlocked()) {
             return $this->json(
-                ['error' => 'Compte bloqué pour non respect des conditions d’utilisation.'],
+                ['error' => 'Account blocked for non-compliance with terms of use.'],
                 JsonResponse::HTTP_FORBIDDEN
             );
         }
@@ -94,7 +94,7 @@ class SecurityController extends AbstractController
         $token = $userService->generateTokenForUser($user);
         
         return $this->json([
-            'message' => 'Authentification réussie.',
+            'message' => 'Authentication successful.',
             'token'   => $token,
             'expiration' => json_encode((new \DateTimeImmutable())->modify('+5 hour')),
         ]);
@@ -124,6 +124,6 @@ class SecurityController extends AbstractController
         $em->remove($apiToken);
         $em->flush();
 
-        return $this->json(['message' => 'Déconnexion réussie.']);
+        return $this->json(['message' => 'Logout successful.']);
     }
 }

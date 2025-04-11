@@ -17,7 +17,7 @@ const EditProfile: React.FC = () => {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
-  // Fonction d'upload d'un fichier
+  // File upload function
   const handleUploadFile = async (file: File, setter: (url: string) => void) => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -29,7 +29,7 @@ const EditProfile: React.FC = () => {
     }
   };
 
-  // Dropzone pour la photo de profil
+  // Dropzone for the profile picture
   const onDropProfile = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     const file = acceptedFiles[0];
@@ -46,7 +46,7 @@ const EditProfile: React.FC = () => {
     multiple: false,
   });
 
-  // Dropzone pour la bannière
+  // Dropzone for the banner
   const onDropBanner = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     const file = acceptedFiles[0];
@@ -63,7 +63,7 @@ const EditProfile: React.FC = () => {
     multiple: false,
   });
 
-  // Récupération des infos actuelles du profil
+  // Retrieve current profile info
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -82,7 +82,7 @@ const EditProfile: React.FC = () => {
       .catch((err) => console.error(err));
   }, [navigate]);
 
-  // Soumission du formulaire
+  // Form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
@@ -90,22 +90,22 @@ const EditProfile: React.FC = () => {
     const payload = { bio, profilePicture, banner, location, website };
     try {
       await updateProfile(token, payload);
-      setMessage("Profil mis à jour avec succès.");
+      setMessage("Profile updated successfully.");
       setTimeout(() => {
         navigate(-1);
       }, 2000);
     } catch (error: any) {
       console.error(error);
-      setMessage(error.message || "Erreur lors de la mise à jour.");
+      setMessage(error.message || "Error while updating.");
     }
   };
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold text-white mb-4">Modifier le profil</h1>
+      <h1 className="text-2xl font-bold text-white mb-4">Edit Profile</h1>
       {message && <p className="text-green-500 mb-4">{message}</p>}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {/* On fixe la largeur en passant la variante "full" */}
+        {/* Setting width by passing the "full" variant */}
         <FormInput
           label="Bio"
           type="text"
@@ -113,60 +113,60 @@ const EditProfile: React.FC = () => {
           value={bio}
           onChange={(e) => setBio(e.target.value)}
         />
-        {/* Zone de drop pour la photo de profil */}
+        {/* Dropzone for the profile picture */}
         <div
           {...getProfileRootProps()}
           className="border-dashed border-2 p-4 text-center cursor-pointer border-gray-500"
         >
           <input {...getProfileInputProps()} />
           {isProfileDragActive ? (
-            <p>Déposez l'image de profil ici...</p>
+            <p>Drop the profile image here...</p>
           ) : (
-            <p>Glissez-déposez ou cliquez pour uploader votre photo de profil</p>
+            <p>Drag and drop or click to upload your profile picture</p>
           )}
           {profilePicture && (
             <img
               src={profilePicture}
-              alt="Prévisualisation de la photo de profil"
+              alt="Profile picture preview"
               className="mt-2 w-24 h-24 rounded-full mx-auto"
             />
           )}
         </div>
-        {/* Zone de drop pour la bannière */}
+        {/* Dropzone for the banner */}
         <div
           {...getBannerRootProps()}
           className="border-dashed border-2 p-4 text-center cursor-pointer border-gray-500"
         >
           <input {...getBannerInputProps()} />
           {isBannerDragActive ? (
-            <p>Déposez la bannière ici...</p>
+            <p>Drop the banner here...</p>
           ) : (
-            <p>Glissez-déposez ou cliquez pour uploader votre bannière</p>
+            <p>Drag and drop or click to upload your banner</p>
           )}
           {banner && (
             <img
               src={banner}
-              alt="Prévisualisation de la bannière"
+              alt="Banner preview"
               className="mt-2 w-full h-32 object-cover"
             />
           )}
         </div>
         <FormInput
-          label="Localisation"
+          label="Location"
           type="text"
           size="full"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
         />
         <FormInput
-          label="Site web"
+          label="Website"
           type="url"
           size="full"
           value={website}
           onChange={(e) => setWebsite(e.target.value)}
         />
-        {/* Bouton sans passage de moreClasses, on utilise la variante "primary" */}
-        <Button text="Enregistrer" buttonType="submit" variant="primary" />
+        {/* Button without passing moreClasses, using the "primary" variant */}
+        <Button text="Save" buttonType="submit" variant="primary" />
       </form>
     </div>
   );

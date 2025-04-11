@@ -25,7 +25,7 @@ class ProfileController extends AbstractController
     ): JsonResponse {
         $user = $userRepository->findOneBy(['username' => $username]);
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non trouvé.'], 404);
+            return $this->json(['error' => 'User not found.'], 404);
         }
         
         $currentUser = $this->getUser();
@@ -34,12 +34,12 @@ class ProfileController extends AbstractController
         if ($currentUser && $currentUser instanceof User) {
             $isOwner = $currentUser->getId() === $user->getId();
             if (!$isOwner) {
-                // Vérifier si le suivi a été approuvé
+                // Check if the follow has been approved
                 $isFollowed = $currentUser->getFollowing()->contains($user);
             }
         }
         
-        // Si le compte est privé et que l'utilisateur n'est ni le propriétaire ni un abonné approuvé, renvoyer un message
+        // If the account is private and the user is neither the owner nor an approved follower, return a message
         if ($user->getPrivate() && !$isOwner && !$isFollowed) {
             return $this->json([
                 'profile' => [
@@ -58,7 +58,7 @@ class ProfileController extends AbstractController
                 ],
                 'pinnedTweet' => null,
                 'tweets'  => [],
-                'message' => "Ce compte est privé. Envoyez une demande de suivi pour voir les tweets."
+                'message' => "This account is private. Send a follow request to view tweets."
             ]);
         }
         
@@ -87,7 +87,7 @@ class ProfileController extends AbstractController
             if ($post->getCensored()) {
                 $tweets[] = [
                     'id'             => $post->getId(),
-                    'content'        => "Ce message enfreint les conditions d’utilisation de la plateforme",
+                    'content'        => "This message violates the platform's terms of service",
                     'createdAt'      => $post->getCreatedAt()->format('c'),
                     'likeCount'      => 0,
                     'liked'          => false,
@@ -95,12 +95,12 @@ class ProfileController extends AbstractController
                     'media'          => [],
                     'replies'        => [],
                     'censored'       => true,
-                    'locked'        => $post->isLocked(),
+                    'locked'         => $post->isLocked(),
                 ];
             } else if ($isBlocked) {
                 $tweets[] = [
                     'id'             => $post->getId(),
-                    'content'        => "Ce compte a été bloqué pour non respect des conditions d’utilisation",
+                    'content'        => "This account has been blocked for not complying with the terms of service",
                     'createdAt'      => $post->getCreatedAt()->format('c'),
                     'likeCount'      => 0,
                     'liked'          => false,
@@ -108,7 +108,7 @@ class ProfileController extends AbstractController
                     'editable'       => $isOwner,
                     'media'          => $post->getMedia() ?: [],
                     'censored'       => false,
-                    'locked'        => $post->isLocked(),
+                    'locked'         => $post->isLocked(),
                 ];
             } else {
                 $tweetData = [
@@ -121,7 +121,7 @@ class ProfileController extends AbstractController
                     'retweetCount'   => $post->getRetweetCount(),
                     'media'          => $post->getMedia() ?: [],
                     'censored'       => false,
-                    'locked'        => $post->isLocked(),
+                    'locked'         => $post->isLocked(),
                 ];
                 $repliesArray = [];
                 foreach ($post->getReplies() as $reply) {
@@ -132,7 +132,7 @@ class ProfileController extends AbstractController
                         'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
                         'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
                         'media'          => $reply->getMedia() ?: [],
-                        'locked'        => $post->isLocked(),
+                        'locked'         => $post->isLocked(),
                     ];
                 }
                 $tweetData['replies'] = $repliesArray;
@@ -182,7 +182,7 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         $profileData = [
             'username'       => $currentUser->getUsername(),
@@ -201,7 +201,7 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         $data = json_decode($request->getContent(), true);
         if (isset($data['bio'])) {
@@ -220,7 +220,7 @@ class ProfileController extends AbstractController
             $currentUser->setWebsite($data['website']);
         }
         $em->flush();
-        return $this->json(['message' => 'Profil mis à jour avec succès.']);
+        return $this->json(['message' => 'Profile updated successfully.']);
     }
 
     #[Route('/api/profile/{username}/follow', name: 'api_profile_toggle_follow', methods: ['POST'])]
@@ -229,51 +229,51 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         $targetUser = $userRepository->findOneBy(['username' => $username]);
         if (!$targetUser) {
-            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+            return $this->json(['error' => 'User not found.'], JsonResponse::HTTP_NOT_FOUND);
         }
         if ($targetUser->getBlockedUsers()->contains($currentUser)) {
             return $this->json(
-                ['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a bloqué.'],
+                ['error' => 'You cannot follow this user because they have blocked you.'],
                 JsonResponse::HTTP_FORBIDDEN
             );
         }
-        // Si le compte est privé, gérer la demande d'abonnement
+        // If the account is private, handle the follow request
         if ($targetUser->getPrivate()) {
-            // Si l'utilisateur est déjà un abonné (suivi approuvé), permettre l'unfollow
+            // If the user is already a follower (approved), allow unfollowing
             if ($targetUser->getFollowers()->contains($currentUser)) {
                 $currentUser->unfollow($targetUser);
                 $em->flush();
                 return $this->json([
-                    'message' => 'Action effectuée: unfollowed',
+                    'message' => 'Action completed: unfollowed',
                     'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
                 ]);
             } else {
-                // Sinon, si aucune demande n'est en attente, ajouter le demandeur dans pending et notifier le propriétaire du compte
+                // Otherwise, if no request is pending, add the requester to pending and notify the account owner
                 if (!$targetUser->getPendingFollowRequests()->contains($currentUser)) {
                     $targetUser->addPendingFollowRequest($currentUser);
                     $em->flush();
 
                     $notification = new Notification();
-                    $notification->setContent($currentUser->getUsername() . " a envoyé une demande de suivi.");
+                    $notification->setContent($currentUser->getUsername() . " sent a follow request.");
                     $notification->setRecipient($targetUser);
                     $em->persist($notification);
                     $em->flush();
 
                     return $this->json([
-                        'message' => 'Demande de suivi envoyée. En attente d\'approbation.'
+                        'message' => 'Follow request sent. Awaiting approval.'
                     ], JsonResponse::HTTP_OK);
                 } else {
                     return $this->json([
-                        'message' => 'Vous avez déjà envoyé une demande de suivi.'
+                        'message' => 'You have already sent a follow request.'
                     ], JsonResponse::HTTP_OK);
                 }
             }
         }
-        // Pour un compte public, établir directement la relation de suivi
+        // For a public account, directly establish the follow relationship
         $action = "";
         if ($currentUser->getFollowing()->contains($targetUser)) {
             $currentUser->unfollow($targetUser);
@@ -284,17 +284,17 @@ class ProfileController extends AbstractController
         }
         $em->flush();
         
-        // Envoi de notification en cas de suivi effectif
+        // Send notification in case of an effective follow
         if ($action === 'followed' && $currentUser !== $targetUser) {
             $notification = new Notification();
-            $notification->setContent($currentUser->getUsername() . " a commencé à vous suivre.");
+            $notification->setContent($currentUser->getUsername() . " started following you.");
             $notification->setRecipient($targetUser);
             $em->persist($notification);
             $em->flush();
         }
         
         return $this->json([
-            'message' => 'Action effectuée: ' . $action,
+            'message' => 'Action completed: ' . $action,
             'following' => $currentUser->getFollowing()->map(fn($user) => $user->getUsername())->toArray(),
         ]);
     }
@@ -305,7 +305,7 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         $pending = [];
         foreach ($currentUser->getPendingFollowRequests() as $pendingUser) {
@@ -323,27 +323,27 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         $follower = $userRepository->findOneBy(['username' => $followerUsername]);
         if (!$follower) {
-            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+            return $this->json(['error' => 'User not found.'], JsonResponse::HTTP_NOT_FOUND);
         }
         if (!$currentUser->getPendingFollowRequests()->contains($follower)) {
-            return $this->json(['error' => 'Aucune demande de suivi de cet utilisateur.'], JsonResponse::HTTP_BAD_REQUEST);
+            return $this->json(['error' => 'No follow request from this user.'], JsonResponse::HTTP_BAD_REQUEST);
         }
-        // Supprimer la demande pending et établir la relation de suivi
+        // Remove the pending request and establish the follow relationship
         $currentUser->removePendingFollowRequest($follower);
         $follower->follow($currentUser);
 
-        // Créer une notification pour informer le demandeur
+        // Create a notification to inform the requester
         $notification = new Notification();
-        $notification->setContent("Votre demande de suivi a été ACCEPTÉE par " . $currentUser->getUsername() . ".");
+        $notification->setContent("Your follow request has been ACCEPTED by " . $currentUser->getUsername() . ".");
         $notification->setRecipient($follower);
         $em->persist($notification);
         $em->flush();
 
-        return $this->json(['message' => 'Demande de suivi acceptée.']);
+        return $this->json(['message' => 'Follow request accepted.']);
     }
 
     #[Route('/api/profile/pending/{followerUsername}/decline', name: 'api_profile_pending_decline', methods: ['POST'])]
@@ -352,25 +352,25 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         $follower = $userRepository->findOneBy(['username' => $followerUsername]);
         if (!$follower) {
-            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+            return $this->json(['error' => 'User not found.'], JsonResponse::HTTP_NOT_FOUND);
         }
         if (!$currentUser->getPendingFollowRequests()->contains($follower)) {
-            return $this->json(['error' => 'Aucune demande de suivi de cet utilisateur.'], JsonResponse::HTTP_BAD_REQUEST);
+            return $this->json(['error' => 'No follow request from this user.'], JsonResponse::HTTP_BAD_REQUEST);
         }
         $currentUser->removePendingFollowRequest($follower);
 
-        // Créer une notification pour informer le demandeur
+        // Create a notification to inform the requester
         $notification = new Notification();
-        $notification->setContent("Votre demande de suivi a été REFUSÉE par " . $currentUser->getUsername() . ".");
+        $notification->setContent("Your follow request has been DECLINED by " . $currentUser->getUsername() . ".");
         $notification->setRecipient($follower);
         $em->persist($notification);
         $em->flush();
 
-        return $this->json(['message' => 'Demande de suivi refusée.']);
+        return $this->json(['message' => 'Follow request declined.']);
     }
 
     #[Route('/api/profile/{username}/block', name: 'api_profile_toggle_block', methods: ['POST'])]
@@ -379,11 +379,11 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         $targetUser = $userRepository->findOneBy(['username' => $username]);
         if (!$targetUser) {
-            return $this->json(['error' => 'Utilisateur non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+            return $this->json(['error' => 'User not found.'], JsonResponse::HTTP_NOT_FOUND);
         }
         if ($currentUser->getBlockedUsers()->contains($targetUser)) {
             $currentUser->unblock($targetUser);
@@ -398,7 +398,7 @@ class ProfileController extends AbstractController
         }
         $em->flush();
         return $this->json([
-            'message' => "Utilisateur {$action} avec succès.",
+            'message' => "User {$action} successfully.",
             'blockedUsers' => $currentUser->getBlockedUsers()->map(fn($user) => $user->getUsername())->toArray(),
         ]);
     }
@@ -409,7 +409,7 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         $blockedUsers = $currentUser->getBlockedUsers()->map(function(User $user) {
             return [
@@ -426,7 +426,7 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         return $this->json([
             'readOnly' => method_exists($currentUser, 'getReadOnly') ? $currentUser->getReadOnly() : false,
@@ -440,7 +440,7 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         $data = json_decode($request->getContent(), true);
         if (isset($data['readOnly'])) {
@@ -450,7 +450,7 @@ class ProfileController extends AbstractController
             $currentUser->setPrivate((bool)$data['private']);
         }
         $em->flush();
-        return $this->json(['message' => 'Paramètres mis à jour avec succès.']);
+        return $this->json(['message' => 'Settings updated successfully.']);
     }
 
     #[Route('/api/profile/{username}/pin/{tweetId}', name: 'api_profile_pin_tweet', methods: ['POST'])]
@@ -464,22 +464,22 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         if ($currentUser->getUsername() !== $username) {
-            return $this->json(['error' => 'Accès non autorisé.'], JsonResponse::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'Unauthorized access.'], JsonResponse::HTTP_FORBIDDEN);
         }
         $post = $postRepository->find($tweetId);
         if (!$post) {
-            return $this->json(['error' => 'Tweet non trouvé.'], JsonResponse::HTTP_NOT_FOUND);
+            return $this->json(['error' => 'Tweet not found.'], JsonResponse::HTTP_NOT_FOUND);
         }
         if ($post->getUser()->getId() !== $currentUser->getId()) {
-            return $this->json(['error' => 'Ce tweet ne vous appartient pas.'], JsonResponse::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'This tweet does not belong to you.'], JsonResponse::HTTP_FORBIDDEN);
         }
         $currentUser->setPinnedTweet($post);
         $em->flush();
         return $this->json([
-            'message' => 'Tweet épinglé avec succès.',
+            'message' => 'Tweet pinned successfully.',
             'pinnedTweet' => $post->getId(),
         ]);
     }
@@ -493,14 +493,14 @@ class ProfileController extends AbstractController
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         if ($currentUser->getUsername() !== $username) {
-            return $this->json(['error' => 'Accès non autorisé.'], JsonResponse::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'Unauthorized access.'], JsonResponse::HTTP_FORBIDDEN);
         }
         $currentUser->setPinnedTweet(null);
         $em->flush();
-        return $this->json(['message' => 'Tweet désépinglé avec succès.']);
+        return $this->json(['message' => 'Tweet unpinned successfully.']);
     }
 
     #[Route('/api/notifications', name: 'api_notifications', methods: ['GET'])]
@@ -508,10 +508,10 @@ class ProfileController extends AbstractController
     {
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         
-        // Récupérer les notifications du destinataire, triées par date décroissante
+        // Retrieve recipient's notifications, sorted by descending date
         $notifications = $notificationRepository->findBy(['recipient' => $user], ['createdAt' => 'DESC']);
         
         $data = [];
@@ -532,38 +532,37 @@ class ProfileController extends AbstractController
     {
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
         }
         
-        // Marquer comme lues toutes les notifications non lues pour l'utilisateur connecté
+        // Mark all unread notifications as read for the logged-in user
         $notifications = $notificationRepository->findBy(['recipient' => $user, 'isRead' => false]);
         foreach ($notifications as $notification) {
             $notification->setIsRead(true);
         }
         $em->flush();
         
-        return $this->json(['message' => 'Notifications marquées comme lues.']);
+        return $this->json(['message' => 'Notifications marked as read.']);
     }
 
     #[Route('/api/profile/toggle-comments-limit', name: 'api_profile_limits', methods: ['POST'])]
-public function toggleLimit(EntityManagerInterface $em): JsonResponse
-{
-    /** @var User|null $currentUser */
-    $currentUser = $this->getUser();
-    if (!$currentUser) {
-        return $this->json(['error' => 'Utilisateur non authentifié.'], JsonResponse::HTTP_UNAUTHORIZED);
+    public function toggleLimit(EntityManagerInterface $em): JsonResponse
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+        if (!$currentUser) {
+            return $this->json(['error' => 'User not authenticated.'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        // Toggle the current state
+        $currentUser->setLimited(!$currentUser->getLimited());
+        // Persist the change in the database
+        $em->flush();
+        return $this->json([
+            'message' => $currentUser->getLimited()
+                ? 'Comments have been limited to subscribers'
+                : 'Comments are no longer limited to subscribers'
+        ]);
     }
-    // Inverser l'état actuel
-    $currentUser->setLimited(!$currentUser->getLimited());
-    // Persister la modification en base de données
-    $em->flush();
-    return $this->json([
-        'message' => $currentUser->getLimited()
-            ? 'Les commentaires ont été limités aux abonnés'
-            : 'Les commentaires ne sont plus limités aux abonnés'
-    ]);
-}
-
 
     #[Route('/api/profile/limit', name: 'api_profile_limit', methods: ['GET'])]
     public function isLimited(): JsonResponse
@@ -574,6 +573,6 @@ public function toggleLimit(EntityManagerInterface $em): JsonResponse
             'limited' => $currentUser->getLimited(),
         ];
     
-    return $this->json(['limit' => $data]);
+        return $this->json(['limit' => $data]);
     }
 }

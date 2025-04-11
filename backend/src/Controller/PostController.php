@@ -21,133 +21,133 @@ use Doctrine\ORM\EntityManagerInterface;
 class PostController extends AbstractController
 {
     #[Route('/api/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
-public function index(Request $request, PostRepository $postRepository): Response
-{
-    $currentUser = $this->getUser();
-    $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
+    public function index(Request $request, PostRepository $postRepository): Response
+    {
+        $currentUser = $this->getUser();
+        $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
 
-    // Récupérer les paramètres
-    // Vous pouvez définir page=0 par défaut si vous souhaitez que la pagination commence à 0
-    $page = $request->query->getInt('page', 0);
-    $count = 50;
-    $offset = max(0, $page * $count);
+        // Retrieve parameters
+        // You can set page=0 by default if you want pagination to start at 0
+        $page = $request->query->getInt('page', 0);
+        $count = 50;
+        $offset = max(0, $page * $count);
 
-    $filter = $request->query->get('filter');
-    $search = $request->query->get('search'); // recherche dans le contenu
-    $date = $request->query->get('date');     // filtre par date (format YYYY-MM-DD)
-    $type = $request->query->get('type');     // filtre sur le type ("text" ou "media")
-    $userParam = $request->query->get('user');  // filtre sur l'utilisateur
+        $filter = $request->query->get('filter');
+        $search = $request->query->get('search'); // search within content
+        $date = $request->query->get('date');     // filter by date (format YYYY-MM-DD)
+        $type = $request->query->get('type');     // filter by type ("text" or "media")
+        $userParam = $request->query->get('user');  // filter by user
 
-    if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
-        /** @var \App\Entity\User $currentUser */
-        $followedUsers = $currentUser->getFollowing()->toArray();
-        $followedUserIds = array_map(fn($user) => $user->getId(), $followedUsers);
-        $paginator = $postRepository->paginatePostsByUsers(
-            $followedUserIds,
-            $offset,
-            $count,
-            $search,
-            $date,
-            $type,
-            $userParam
-        );
-    } else {
-        $paginator = $postRepository->paginateAllOrderedByLatest(
-            $offset,
-            $count,
-            $search,
-            $date,
-            $type,
-            $userParam
-        );
-    }
-
-    $totalPostsCount = $paginator->count();
-    $previousPage = $page > 0 ? $page - 1 : null;
-    $nextPage = (($page + 1) * $count < $totalPostsCount) ? $page + 1 : null;
-
-    // Récupération et formatage des posts pour la réponse JSON
-    $postsArray = [];
-    foreach ($paginator as $post) {
-        $author = $post->getUser();
-        if (!$author) {
-            continue;
+        if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
+            /** @var \App\Entity\User $currentUser */
+            $followedUsers = $currentUser->getFollowing()->toArray();
+            $followedUserIds = array_map(fn($user) => $user->getId(), $followedUsers);
+            $paginator = $postRepository->paginatePostsByUsers(
+                $followedUserIds,
+                $offset,
+                $count,
+                $search,
+                $date,
+                $type,
+                $userParam
+            );
+        } else {
+            $paginator = $postRepository->paginateAllOrderedByLatest(
+                $offset,
+                $count,
+                $search,
+                $date,
+                $type,
+                $userParam
+            );
         }
-        // Gestion des comptes privés et autres restrictions...
-        if ($author->getPrivate()) {
-            if (
-                !$currentUser instanceof \App\Entity\User ||
-                ($currentUser->getId() !== $author->getId() && !$currentUser->getFollowing()->contains($author))
-            ) {
+
+        $totalPostsCount = $paginator->count();
+        $previousPage = $page > 0 ? $page - 1 : null;
+        $nextPage = (($page + 1) * $count < $totalPostsCount) ? $page + 1 : null;
+
+        // Retrieve and format posts for the JSON response
+        $postsArray = [];
+        foreach ($paginator as $post) {
+            $author = $post->getUser();
+            if (!$author) {
                 continue;
             }
-        }
-        
-        if ($post->getCensored()) {
-            $tweetData = [
-                'id'             => $post->getId(),
-                'username'       => $author->getUsername() ?? "Unnamed",
-                'content'        => "Ce message enfreint les conditions d’utilisation de la plateforme",
-                'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                'likeCount'      => 0,
-                'liked'          => false,
-                'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
-                'media'          => [],
-                'replies'        => [],
-                'censored'       => true,
-                'locked'         => $post->isLocked(),
-            ];
-        } else {
-            $liked = false;
-            if ($currentUserId !== null) {
-                foreach ($post->getLikes() as $like) {
-                    if ($like->getUser()->getId() === $currentUserId) {
-                        $liked = true;
-                        break;
+            // Handling private accounts and other restrictions...
+            if ($author->getPrivate()) {
+                if (
+                    !$currentUser instanceof \App\Entity\User ||
+                    ($currentUser->getId() !== $author->getId() && !$currentUser->getFollowing()->contains($author))
+                ) {
+                    continue;
+                }
+            }
+            
+            if ($post->getCensored()) {
+                $tweetData = [
+                    'id'             => $post->getId(),
+                    'username'       => $author->getUsername() ?? "Unnamed",
+                    'content'        => "This message violates the platform's terms of use",
+                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount'      => 0,
+                    'liked'          => false,
+                    'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
+                    'media'          => [],
+                    'replies'        => [],
+                    'censored'       => true,
+                    'locked'         => $post->isLocked(),
+                ];
+            } else {
+                $liked = false;
+                if ($currentUserId !== null) {
+                    foreach ($post->getLikes() as $like) {
+                        if ($like->getUser()->getId() === $currentUserId) {
+                            $liked = true;
+                            break;
+                        }
                     }
                 }
-            }
-            $tweetData = [
-                'id'             => $post->getId(),
-                'username'       => $author->getUsername() ?? "Unnamed",
-                'content'        => $author->getBlocked()
-                                    ? "Ce compte a été bloqué pour non respect des conditions d’utilisation"
-                                    : $post->getContent(),
-                'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                'likeCount'      => $author->getBlocked() ? 0 : $post->getLikesCount(),
-                'retweetCount'   => $post->getRetweetCount(),
-                'liked'          => $author->getBlocked() ? false : $liked,
-                'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
-                'media'          => $post->getMedia() ?: [],
-                'censored'       => false,
-                'locked'         => $post->isLocked(),
-            ];
-            if ($post->isLocked()) {
-                $tweetData['replies'] = [];
-            } else {
-                $repliesArray = [];
-                foreach ($post->getReplies() as $reply) {
-                    $repliesArray[] = [
-                        'id'             => $reply->getId(),
-                        'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
-                        'content'        => $reply->getContent(),
-                        'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
-                        'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
-                        'media'          => $reply->getMedia() ?: [],
-                    ];
+                $tweetData = [
+                    'id'             => $post->getId(),
+                    'username'       => $author->getUsername() ?? "Unnamed",
+                    'content'        => $author->getBlocked()
+                                        ? "This account has been blocked for failing to comply with the platform's terms of use"
+                                        : $post->getContent(),
+                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likeCount'      => $author->getBlocked() ? 0 : $post->getLikesCount(),
+                    'retweetCount'   => $post->getRetweetCount(),
+                    'liked'          => $author->getBlocked() ? false : $liked,
+                    'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
+                    'media'          => $post->getMedia() ?: [],
+                    'censored'       => false,
+                    'locked'         => $post->isLocked(),
+                ];
+                if ($post->isLocked()) {
+                    $tweetData['replies'] = [];
+                } else {
+                    $repliesArray = [];
+                    foreach ($post->getReplies() as $reply) {
+                        $repliesArray[] = [
+                            'id'             => $reply->getId(),
+                            'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
+                            'content'        => $reply->getContent(),
+                            'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+                            'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
+                            'media'          => $reply->getMedia() ?: [],
+                        ];
+                    }
+                    $tweetData['replies'] = $repliesArray;
                 }
-                $tweetData['replies'] = $repliesArray;
             }
+            $postsArray[] = $tweetData;
         }
-        $postsArray[] = $tweetData;
-    }
 
-    return $this->json([
-        'posts'         => $postsArray,
-        'previous_page' => $previousPage,
-        'next_page'     => $nextPage,
-    ]);
-}
+        return $this->json([
+            'posts'         => $postsArray,
+            'previous_page' => $previousPage,
+            'next_page'     => $nextPage,
+        ]);
+    }
 
 
     #[Route('/api/posts/{id}/like', name: 'api_post_toggle_like', methods: ['POST'])]
@@ -156,19 +156,19 @@ public function index(Request $request, PostRepository $postRepository): Respons
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'Unauthenticated user.'], Response::HTTP_UNAUTHORIZED);
         }
         
         $postOwner = $post->getUser();
         if ($postOwner && $postOwner->getBlockedUsers()->contains($user)) {
             return $this->json(
-                ['error' => 'Vous ne pouvez pas interagir avec ce post car cet utilisateur vous a bloqué.'],
+                ['error' => 'You cannot interact with this post because this user has blocked you.'],
                 Response::HTTP_FORBIDDEN
             );
         }
         if ($user->getBlocked()) {
             return $this->json(
-                ['error' => 'Votre compte est actuellement bloqué, vous ne pouvez pas interagir avec d\'autres utilisateurs'],
+                ['error' => 'Your account is currently blocked; you cannot interact with other users.'],
                 Response::HTTP_FORBIDDEN
             );
         }
@@ -191,7 +191,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
         
         if ($postOwner !== $user && $liked) {
             $notification = new Notification();
-            $notification->setContent($user->getUsername() . " a aimé votre tweet.");
+            $notification->setContent($user->getUsername() . " liked your post.");
             $notification->setRecipient($postOwner);
             $em->persist($notification);
             $em->flush();
@@ -214,26 +214,26 @@ public function index(Request $request, PostRepository $postRepository): Respons
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'Unauthenticated user.'], Response::HTTP_UNAUTHORIZED);
         }
         if ($user->getBlocked()) {
-            return $this->json(['error' => 'Votre compte est bloqué et vous ne pouvez pas interagir avec les messages.'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'Your account is blocked and you cannot interact with posts.'], Response::HTTP_FORBIDDEN);
         }
 
         $data = json_decode($request->getContent(), true);
         $content = $data['content'] ?? null;
         $media = $data['media'] ?? [];
-        // Récupération de l'option de verrouillage
+        // Retrieve the lock option
         $locked = $data['locked'] ?? false;
 
         if (!$content || trim($content) === '') {
-            return $this->json(['error' => 'Le contenu du post ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+            return $this->json(['error' => 'The post content cannot be empty.'], Response::HTTP_BAD_REQUEST);
         }
 
         $payload = new CreatePostPayload();
         $payload->setContent($content);
         $payload->setMedia($media);
-        $payload->setLocked($locked); // Nouveau champ dans le payload
+        $payload->setLocked($locked); // New field in the payload
 
         $errors = $validator->validate($payload);
         if (count($errors) > 0) {
@@ -251,7 +251,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
                 $mentionedUser = $userRepository->findOneBy(['username' => $mentionedUsername]);
                 if ($mentionedUser && $mentionedUser !== $user) {
                     $notification = new Notification();
-                    $notification->setContent($user->getUsername() . " vous a mentionné dans un tweet.");
+                    $notification->setContent($user->getUsername() . " mentioned you in a post.");
                     $notification->setRecipient($mentionedUser);
                     $em->persist($notification);
                 }
@@ -259,7 +259,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
             $em->flush();
         }
 
-        return $this->json(['message' => 'Post créé avec succès.'], Response::HTTP_CREATED);
+        return $this->json(['message' => 'Post created successfully.'], Response::HTTP_CREATED);
     }
     
     #[Route('/api/posts/{id}', name: 'api_post_delete', methods: ['DELETE'])]
@@ -267,13 +267,13 @@ public function index(Request $request, PostRepository $postRepository): Respons
     {
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'Unauthenticated user.'], Response::HTTP_UNAUTHORIZED);
         }
         if (!$user instanceof \App\Entity\User) {
-            throw new \LogicException('L\'utilisateur doit être une instance de App\Entity\User.');
+            throw new \LogicException('The user must be an instance of App\Entity\User.');
         }
         if ($post->getUser()->getId() !== $user->getId()) {
-            return $this->json(['error' => 'Vous n\'êtes pas autorisé à supprimer ce post.'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'You are not authorized to delete this post.'], Response::HTTP_FORBIDDEN);
         }
 
         foreach ($post->getLikes() as $like) {
@@ -283,7 +283,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
         $em->remove($post);
         $em->flush();
 
-        return $this->json(['message' => 'Post supprimé avec succès.'], Response::HTTP_OK);
+        return $this->json(['message' => 'Post deleted successfully.'], Response::HTTP_OK);
     }
 
     private function removeRepliesRecursively(Post $post, EntityManagerInterface $em): void
@@ -304,31 +304,31 @@ public function index(Request $request, PostRepository $postRepository): Respons
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'Unauthenticated user.'], Response::HTTP_UNAUTHORIZED);
         }
-        // Vérifier si le post est verrouillé et empêcher l'ajout d'une réponse
+        // Check if the post is locked and prevent adding a reply
         if ($post->isLocked()) {
-            return $this->json(['error' => 'Les réponses sont verrouillées pour ce post.'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'Replies are locked for this post.'], Response::HTTP_FORBIDDEN);
         }
         $postOwner = $post->getUser();
-        // Si l’auteur a limité les commentaires aux abonnés et que le commentateur n'est pas un abonné (sauf s'il s'agit de lui-même)
+        // If the author has restricted comments to followers and the commenter is not a follower (unless it is their own)
         if ($postOwner->getLimited() && $user->getId() !== $postOwner->getId() && !$postOwner->getFollowers()->contains($user)) {
-            return $this->json(['error' => 'Les commentaires sont limités aux abonnés de ce profil.'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'Comments are restricted to followers of this profile.'], Response::HTTP_FORBIDDEN);
         }
         if ($postOwner && $postOwner->getBlockedUsers()->contains($user)) {
             return $this->json(
-                ['error' => 'Vous ne pouvez pas interagir avec ce post car cet utilisateur vous a bloqué.'],
+                ['error' => 'You cannot interact with this post because this user has blocked you.'],
                 Response::HTTP_FORBIDDEN
             );
         }
         if ($postOwner && method_exists($postOwner, 'getReadOnly') && $postOwner->getReadOnly()) {
             return $this->json(
-                ['error' => 'Ce compte est en mode lecture seule, vous ne pouvez pas commenter ou répondre.'],
+                ['error' => 'This account is in read-only mode; you cannot comment or reply.'],
                 Response::HTTP_FORBIDDEN
             );
         }
         if ($user->getBlocked()) {
-            return $this->json(['error' => 'Votre compte est bloqué et vous ne pouvez pas interagir avec les messages.'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'Your account is blocked and you cannot interact with posts.'], Response::HTTP_FORBIDDEN);
         }
         
         $data = json_decode($request->getContent(), true);
@@ -336,7 +336,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
         $media = $data['media'] ?? [];
 
         if (!$content || trim($content) === '') {
-            return $this->json(['error' => 'Le contenu de la réponse ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+            return $this->json(['error' => 'The reply content cannot be empty.'], Response::HTTP_BAD_REQUEST);
         }
 
         $reply = new Post();
@@ -351,7 +351,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
 
         if ($postOwner !== $user) {
             $notification = new Notification();
-            $notification->setContent($user->getUsername() . " a répondu à votre tweet.");
+            $notification->setContent($user->getUsername() . " replied to your post.");
             $notification->setRecipient($postOwner);
             $em->persist($notification);
             $em->flush();
@@ -377,10 +377,10 @@ public function index(Request $request, PostRepository $postRepository): Respons
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'Unauthenticated user.'], Response::HTTP_UNAUTHORIZED);
         }
         if ($post->getUser()->getId() !== $user->getId()) {
-            return $this->json(['error' => 'Vous n\'êtes pas autorisé à modifier ce post.'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'You are not authorized to update this post.'], Response::HTTP_FORBIDDEN);
         }
 
         $data = json_decode($request->getContent(), true);
@@ -388,7 +388,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
         $media = $data['media'] ?? null;
 
         if (!$content || trim($content) === '') {
-            return $this->json(['error' => 'Le contenu du post ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+            return $this->json(['error' => 'The post content cannot be empty.'], Response::HTTP_BAD_REQUEST);
         }
 
         $post->setContent($content);
@@ -399,7 +399,7 @@ public function index(Request $request, PostRepository $postRepository): Respons
         $em->flush();
 
         return $this->json([
-            'message' => 'Post modifié avec succès.',
+            'message' => 'Post updated successfully.',
             'post' => [
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
@@ -415,11 +415,11 @@ public function index(Request $request, PostRepository $postRepository): Respons
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'Unauthenticated user.'], Response::HTTP_UNAUTHORIZED);
         }
 
         if ($post->getUser()->getPrivate()) {
-            return $this->json(['error' => "Les contenus d'un compte privé ne peuvent pas être retweetés."], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => "Content from a private account cannot be retweeted."], Response::HTTP_FORBIDDEN);
         }
 
         $data = json_decode($request->getContent(), true);
@@ -453,14 +453,14 @@ public function index(Request $request, PostRepository $postRepository): Respons
         $originalOwner = $post->getUser();
         if ($originalOwner !== $user) {
             $notification = new Notification();
-            $notification->setContent($user->getUsername() . " a retweeté votre tweet.");
+            $notification->setContent($user->getUsername() . " retweeted your post.");
             $notification->setRecipient($originalOwner);
             $em->persist($notification);
         }
         $em->flush();
         
         return $this->json([
-            'message' => 'Tweet retweeté avec succès.',
+            'message' => 'Post retweeted successfully.',
             'retweet' => [
                 'id' => $retweet->getId(),
                 'content' => $retweet->getContent(),
@@ -473,24 +473,24 @@ public function index(Request $request, PostRepository $postRepository): Respons
         ], Response::HTTP_CREATED);
     }
     
-    // *************** Routes de verrouillage ****************
+    // *************** Locking Routes ****************
     #[Route('/api/posts/{id}/lock', name: 'api_post_lock', methods: ['POST'])]
     public function lock(Post $post, EntityManagerInterface $em): JsonResponse
     {
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'Unauthenticated user.'], Response::HTTP_UNAUTHORIZED);
         }
         if ($post->getUser()->getId() !== $user->getId()) {
-            return $this->json(['error' => 'Vous n\'êtes pas autorisé à verrouiller ce post.'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'You are not authorized to lock this post.'], Response::HTTP_FORBIDDEN);
         }
         if ($post->isLocked()) {
-            return $this->json(['message' => 'Le post est déjà verrouillé.'], Response::HTTP_BAD_REQUEST);
+            return $this->json(['message' => 'The post is already locked.'], Response::HTTP_BAD_REQUEST);
         }
         $post->setLocked(true);
         $em->flush();
-        return $this->json(['message' => 'Post verrouillé avec succès.', 'locked' => true], Response::HTTP_OK);
+        return $this->json(['message' => 'Post locked successfully.', 'locked' => true], Response::HTTP_OK);
     }
 
     #[Route('/api/posts/{id}/unlock', name: 'api_post_unlock', methods: ['POST'])]
@@ -499,42 +499,42 @@ public function index(Request $request, PostRepository $postRepository): Respons
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->json(['error' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
+            return $this->json(['error' => 'Unauthenticated user.'], Response::HTTP_UNAUTHORIZED);
         }
         if ($post->getUser()->getId() !== $user->getId()) {
-            return $this->json(['error' => 'Vous n\'êtes pas autorisé à déverrouiller ce post.'], Response::HTTP_FORBIDDEN);
+            return $this->json(['error' => 'You are not authorized to unlock this post.'], Response::HTTP_FORBIDDEN);
         }
         if (!$post->isLocked()) {
-            return $this->json(['message' => 'Le post est déjà déverrouillé.'], Response::HTTP_BAD_REQUEST);
+            return $this->json(['message' => 'The post is already unlocked.'], Response::HTTP_BAD_REQUEST);
         }
         $post->setLocked(false);
         $em->flush();
-        return $this->json(['message' => 'Post déverrouillé avec succès.', 'locked' => false], Response::HTTP_OK);
+        return $this->json(['message' => 'Post unlocked successfully.', 'locked' => false], Response::HTTP_OK);
     }
     // **********************************************************
 
 
     #[Route('/api/hashtag/{tag}', name: 'api_hashtag_search', methods: ['GET'])]
-public function searchByHashtag(string $tag, PostRepository $postRepository): Response
-{
-    if (!$tag) {
-        return $this->json(['error' => 'Aucun hashtag fourni.'], Response::HTTP_BAD_REQUEST);
-    }
+    public function searchByHashtag(string $tag, PostRepository $postRepository): Response
+    {
+        if (!$tag) {
+            return $this->json(['error' => 'No hashtag provided.'], Response::HTTP_BAD_REQUEST);
+        }
 
-    
-    $currentUser = $this->getUser();
-    $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
-    
-    // Utiliser la méthode findByHashtag du repository
-    $posts = $postRepository->findByHashtag($tag);
-    
-    $postsArray = [];
+        
+        $currentUser = $this->getUser();
+        $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
+        
+        // Use the findByHashtag method from the repository
+        $posts = $postRepository->findByHashtag($tag);
+        
+        $postsArray = [];
         foreach ($posts as $post) {
             $author = $post->getUser();
             if (!$author) {
                 continue;
             }
-            // Vérification du compte privé
+            // Check for private account
             if ($author->getPrivate()) {
                 if (
                     !$currentUser instanceof \App\Entity\User ||
@@ -548,7 +548,7 @@ public function searchByHashtag(string $tag, PostRepository $postRepository): Re
                 $tweetData = [
                     'id'             => $post->getId(),
                     'username'       => $author->getUsername() ?? "Unnamed",
-                    'content'        => "Ce message enfreint les conditions d’utilisation de la plateforme",
+                    'content'        => "This message violates the platform's terms of use",
                     'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                     'likeCount'      => 0,
                     'liked'          => false,
@@ -572,7 +572,7 @@ public function searchByHashtag(string $tag, PostRepository $postRepository): Re
                     'id'             => $post->getId(),
                     'username'       => $author->getUsername() ?? "Unnamed",
                     'content'        => $author->getBlocked()
-                                        ? "Ce compte a été bloqué pour non respect des conditions d’utilisation"
+                                        ? "This account has been blocked for failing to comply with the platform's terms of use"
                                         : $post->getContent(),
                     'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                     'likeCount'      => $author->getBlocked() ? 0 : $post->getLikesCount(),
@@ -584,7 +584,7 @@ public function searchByHashtag(string $tag, PostRepository $postRepository): Re
                     'locked'         => $post->isLocked(),
                 ];
                 if ($post->isLocked()) {
-                    // Si le tweet est verrouillé, ne pas renvoyer les réponses
+                    // If the post is locked, do not return replies
                     $tweetData['replies'] = [];
                 } else {
                     $repliesArray = [];
@@ -605,10 +605,8 @@ public function searchByHashtag(string $tag, PostRepository $postRepository): Re
         }
 
         return $this->json([
-            'posts'         => $postsArray
+            'posts' => $postsArray
         ]);
-    
-    return $this->json($postsArray);
-}
+    }
 
 }

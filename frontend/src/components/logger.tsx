@@ -1,6 +1,8 @@
 // src/components/logger.tsx
 import React from "react"
 import { useNavigate } from "react-router-dom";
+const baseUrl = import.meta.env.VITE_API_URL;
+
 
 export function useLogout() {
   const navigate = useNavigate();
@@ -11,7 +13,7 @@ export function useLogout() {
       navigate("/landing");
       return;
     }
-    fetch("http://localhost:8080/logout", {
+    fetch(baseUrl+"logout", {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -20,7 +22,7 @@ export function useLogout() {
     })
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Erreur lors de la déconnexion");
+          throw new Error("Error during logout");
         }
         return response.json();
       })
@@ -29,7 +31,7 @@ export function useLogout() {
         navigate("/landing");
       })
       .catch((error) => {
-        console.error("Erreur lors de la déconnexion :", error);
+        console.error("Error during logout:", error);
       });
   };
 

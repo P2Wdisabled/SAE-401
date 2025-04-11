@@ -1,6 +1,7 @@
 // src/components/Checker.tsx
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+const baseUrl = import.meta.env.VITE_API_URL;
 
 export function useCheckToken() {
   const navigate = useNavigate();
@@ -9,21 +10,21 @@ export function useCheckToken() {
   useEffect(() => {
     const token = localStorage.getItem("token");
 
-    // Pages publiques : login, register, landing
+    // Public pages: login, register, landing
     const authRoutes = ["/login", "/register", "/landing"];
     const isAuthPage = authRoutes.includes(location.pathname);
 
     if (!token) {
-      // Si aucun token n'est trouvé, rediriger vers /landing sur les pages protégées
+      // If no token is found, redirect to /landing on protected pages
       if (!isAuthPage) {
         navigate("/landing");
       }
       return;
     }
 
-    // Si on est sur une page d'administration, vérifier via le backend que l'utilisateur est admin
+    // If we are on an administration page, verify via the backend that the user is an admin
     if (location.pathname.startsWith("/admin")) {
-      fetch("http://localhost:8080/admin/verify", {
+      fetch(baseUrl+"admin/verify", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -32,30 +33,30 @@ export function useCheckToken() {
       })
         .then((response) => {
           if (response.status === 401) {
-            // Token invalide
+            // Invalid token
             if (!isAuthPage) {
               navigate("/landing");
             }
             throw new Error("Not authenticated");
           } else if (response.status === 403) {
-            // Token valide mais pas admin
+            // Valid token but not admin
             navigate("/");
             throw new Error("Access denied");
           } else if (!response.ok) {
-            throw new Error("Erreur lors de la vérification des droits d'administration");
+            throw new Error("Error while verifying admin rights");
           }
           return response.json();
         })
         .then((data) => {
-          // Si l'endpoint retourne { admin: false }, rediriger vers la home
+          // If the endpoint returns { admin: false }, redirect to the home page
           if (!data.admin) {
             navigate("/");
           }
         })
         .catch((error) => {
-          console.error("Erreur dans useCheckToken (admin):", error);
+          console.error("Error in useCheckToken (admin):", error);
         });
     }
-    // Pour les autres pages, si le token est présent, l'accès est autorisé
+    // For other pages, if the token is present, access is allowed
   }, [navigate, location.pathname]);
 }

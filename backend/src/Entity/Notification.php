@@ -21,7 +21,6 @@ class Notification
     #[ORM\Column(type: "datetime")]
     private \DateTimeInterface $createdAt;
     
-    // Renommage de la propriété et spécification d'un nom de colonne différent
     #[ORM\Column(name: "is_read", type: "boolean")]
     private bool $isRead = false;
     

@@ -10,7 +10,7 @@ import { lockTweet } from "../api/lockTweet";
 import { unlockTweet } from "../api/unlockTweet";
 import { uploadFile } from "../api/uploadFile";
 
-// Définition des styles avec CVA
+// Definition of styles with CVA
 const tweetContainer = cva("flex flex-col gap-2 py-3 border-b border-gray-600");
 const headerContainer = cva("flex items-start gap-3");
 const contentContainer = cva("flex-1");
@@ -43,7 +43,7 @@ const replyAuthor = cva("text-white font-semibold");
 const replyTimestamp = cva("text-gray-400 text-xs");
 const replyContentStyle = cva("text-gray-300");
 
-// Bouton de contrôle dans le tweet (local)
+// Control button within the tweet (local)
 const controlButton = cva("px-3 py-1 text-white rounded transition", {
   variants: {
     intent: {
@@ -59,7 +59,7 @@ const controlButton = cva("px-3 py-1 text-white rounded transition", {
   },
 });
 
-// Bouton ou icône cliquable
+// Clickable button or icon
 const clickableIcon = cva("flex items-center gap-1 cursor-pointer");
 
 
@@ -144,36 +144,36 @@ const Tweet: React.FC<TweetProps> = ({
       setLikeCount(likeCount);
       setActionError("");
     } catch (error) {
-      console.error("Erreur lors du toggle like", error);
-      setActionError("Erreur lors du toggle like");
+      console.error("Error toggling like", error);
+      setActionError("Error toggling like");
     }
   };
 
   const handleRetweet = async () => {
     if (!token) return;
-    const comment = window.prompt("Ajouter un commentaire (optionnel) pour retweeter :");
+    const comment = window.prompt("Add a comment (optional) for retweeting:");
     try {
       const commentToSend: string | undefined = comment === null ? undefined : comment;
       const { retweetCount } = await retweet(token, tweetId, commentToSend);
       setRetweetCount(retweetCount);
-      alert("Retweet effectué avec succès !");
+      alert("Retweet successful!");
       setActionError("");
     } catch (error) {
-      console.error("Erreur lors du retweet", error);
-      setActionError("Erreur lors du retweet");
+      console.error("Error during retweet", error);
+      setActionError("Error during retweet");
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce tweet ?")) return;
+    if (!window.confirm("Are you sure you want to delete this tweet?")) return;
     if (!token) return;
     try {
       await deleteTweet(token, tweetId);
       if (onDelete) onDelete();
       setActionError("");
     } catch (error) {
-      console.error("Erreur lors de la suppression du tweet", error);
-      setActionError("Erreur lors de la suppression du tweet");
+      console.error("Error deleting tweet", error);
+      setActionError("Error deleting tweet");
     }
   };
 
@@ -185,7 +185,7 @@ const Tweet: React.FC<TweetProps> = ({
         const url = await uploadFile(file, token);
         uploadedMediaUrls.push(url);
       } catch (error) {
-        console.error("Erreur lors de l'upload d'un fichier:", error);
+        console.error("Error uploading file:", error);
       }
     }
     const updatedMedia = [...editMedia, ...uploadedMediaUrls];
@@ -195,8 +195,8 @@ const Tweet: React.FC<TweetProps> = ({
       setIsEditing(false);
       setActionError("");
     } catch (error) {
-      console.error("Erreur lors de la mise à jour du tweet", error);
-      setActionError("Erreur lors de la mise à jour du tweet");
+      console.error("Error updating tweet", error);
+      setActionError("Error updating tweet");
     }
   };
 
@@ -226,7 +226,7 @@ const Tweet: React.FC<TweetProps> = ({
   const handleReplySubmit = async () => {
     if (replyContent.trim() === "") return;
     if (isLockedState) {
-      setActionError("Les réponses sont verrouillées pour ce post.");
+      setActionError("Replies are locked for this post.");
       return;
     }
     if (!token) return;
@@ -237,8 +237,8 @@ const Tweet: React.FC<TweetProps> = ({
       setShowReplyForm(false);
       setActionError("");
     } catch (error) {
-      console.error("Erreur lors de l'envoi de la réponse", error);
-      setActionError("Erreur lors de l'envoi de la réponse");
+      console.error("Error sending reply", error);
+      setActionError("Error sending reply");
     }
   };
 
@@ -249,8 +249,8 @@ const Tweet: React.FC<TweetProps> = ({
       setIsLockedState(true);
       setActionError("");
     } catch (error) {
-      console.error("Erreur lors du verrouillage", error);
-      setActionError("Erreur lors du verrouillage");
+      console.error("Error locking tweet", error);
+      setActionError("Error locking tweet");
     }
   };
 
@@ -261,8 +261,8 @@ const Tweet: React.FC<TweetProps> = ({
       setIsLockedState(false);
       setActionError("");
     } catch (error) {
-      console.error("Erreur lors du déverrouillage", error);
-      setActionError("Erreur lors du déverrouillage");
+      console.error("Error unlocking tweet", error);
+      setActionError("Error unlocking tweet");
     }
   };
 
@@ -279,7 +279,7 @@ const Tweet: React.FC<TweetProps> = ({
           {!isEditing ? (
             <>
               <p className={tweetContent({ censored })}>{parseContent(content)}</p>
-              {isLockedState && <p className={lockedText()}>Les réponses sont verrouillées.</p>}
+              {isLockedState && <p className={lockedText()}>Replies are locked.</p>}
               {!censored && media && media.length > 0 && (
                 <div className={mediaContainer()}>
                   {media.map((url, index) =>
@@ -299,7 +299,7 @@ const Tweet: React.FC<TweetProps> = ({
                         rel="noopener noreferrer"
                         className="p-2 border rounded bg-gray-100 text-blue-600 hover:underline"
                       >
-                        📄 Voir le fichier {url.split("/").pop()}
+                        📄 View file {url.split("/").pop()}
                       </a>
                     )
                   )}
@@ -342,7 +342,7 @@ const Tweet: React.FC<TweetProps> = ({
               )}
               <div className="mt-2">
                 <label htmlFor={`new-media-${tweetId}`} className={fileLabel()}>
-                  Ajouter des fichiers
+                  Add files
                 </label>
                 <input
                   id={`new-media-${tweetId}`}
@@ -355,10 +355,10 @@ const Tweet: React.FC<TweetProps> = ({
               </div>
               <div className="mt-2 flex gap-2">
                 <button onClick={handleEditSave} className={controlButton({ intent: "success" })}>
-                  Sauvegarder
+                  Save
                 </button>
                 <button onClick={handleCancelEdit} className={controlButton({ intent: "default" })}>
-                  Annuler
+                  Cancel
                 </button>
               </div>
             </>
@@ -418,7 +418,7 @@ const Tweet: React.FC<TweetProps> = ({
               <span className="text-white">{retweetCount}</span>
             </div>
             {!isLockedState && (
-              <button onClick={() => setShowReplyForm((prev) => !prev)} className={controlButton({ intent: "default" })} title="Répondre">
+              <button onClick={() => setShowReplyForm((prev) => !prev)} className={controlButton({ intent: "default" })} title="Reply">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.2L4 17.2V4H20V16Z"
@@ -466,16 +466,16 @@ const Tweet: React.FC<TweetProps> = ({
             <div className={replyFormContainer()}>
               <textarea
                 className={replyTextArea()}
-                placeholder="Votre réponse..."
+                placeholder="Your reply..."
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
               />
               <div className="mt-1 flex gap-2">
                 <button onClick={handleReplySubmit} className={controlButton({ intent: "success" })}>
-                  Répondre
+                  Reply
                 </button>
                 <button onClick={() => setShowReplyForm(false)} className={controlButton({ intent: "default" })}>
-                  Annuler
+                  Cancel
                 </button>
               </div>
             </div>

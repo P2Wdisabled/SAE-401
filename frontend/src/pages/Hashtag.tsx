@@ -34,11 +34,11 @@ const Hashtag: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h2 className="text-2xl text-white mb-4">Hashtag : #{tag}</h2>
-      {loading && <p className="text-white">Chargement...</p>}
+      <h2 className="text-2xl text-white mb-4">Hashtag: #{tag}</h2>
+      {loading && <p className="text-white">Loading...</p>}
       {error && <p className="text-red-500">{error}</p>}
       {posts.length === 0 && !loading ? (
-        <p className="text-white">Aucun post trouvé pour ce hashtag.</p>
+        <p className="text-white">No post found for this hashtag.</p>
       ) : (
         posts.map((post, index) => (
           <Tweet

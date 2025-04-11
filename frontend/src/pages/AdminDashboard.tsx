@@ -9,11 +9,11 @@ function Dashboard() {
 
   return (
     <div className="p-4">
-      <h2 className="text-2xl text-white mb-4">Dashboard Admin</h2>
+      <h2 className="text-2xl text-white mb-4">Admin Dashboard</h2>
       <AccountsList />
-      {/* Bouton pour accéder à la page /admin/censor */}
+      {/* Button to access the /admin/censor page */}
       <div className="mb-4 flex justify-end">
-        <Button page="/admin/censor" text="Censurer" variant="outline" />
+        <Button page="/admin/censor" text="Censor" variant="outline" />
       </div>
     </div>
   );

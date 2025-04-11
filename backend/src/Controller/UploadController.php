@@ -15,13 +15,13 @@ class UploadController extends AbstractController
     {
         $file = $request->files->get('file');
         if (!$file) {
-            return $this->json(['error' => 'Aucun fichier fourni.'], JsonResponse::HTTP_BAD_REQUEST);
+            return $this->json(['error' => 'No file provided.'], JsonResponse::HTTP_BAD_REQUEST);
         }
         
-        // Vérifier si la taille du fichier dépasse 100 Mo (100 * 1024 * 1024 octets)
+        // Check if the file size exceeds 100 MB (100 * 1024 * 1024 bytes)
         if ($file->getSize() > 104857600) {
             return $this->json([
-                'error' => 'Fichier trop volumineux. La taille maximale autorisée est de 100 Mo.'
+                'error' => 'File too large. The maximum allowed size is 100 MB.'
             ], JsonResponse::HTTP_REQUEST_ENTITY_TOO_LARGE);
         }
         
@@ -31,7 +31,7 @@ class UploadController extends AbstractController
         try {
             $file->move($uploadDir, $newFilename);
         } catch (\Exception $e) {
-            return $this->json(['error' => 'Erreur lors de l’upload.'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->json(['error' => 'Error during upload.'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
         }
         
         $url = $request->getSchemeAndHttpHost() . '/uploads/' . $newFilename;

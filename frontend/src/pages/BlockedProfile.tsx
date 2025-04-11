@@ -14,7 +14,7 @@ const BlockedUsers: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
-  // Fonction pour récupérer la liste des utilisateurs bloqués via l'API
+  // Function to fetch the list of blocked users via the API
   const fetchBlockedUsers = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -35,7 +35,7 @@ const BlockedUsers: React.FC = () => {
     fetchBlockedUsers();
   }, []);
 
-  // Fonction pour débloquer un utilisateur via l'API
+  // Function to unblock a user via the API
   const handleUnblock = async (username: string) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -48,21 +48,21 @@ const BlockedUsers: React.FC = () => {
         prevUsers.filter((user) => user.username !== username)
       );
     } catch (error) {
-      console.error("Erreur lors du débloquage", error);
+      console.error("Error while unblocking", error);
     }
   };
 
   if (loading) {
-    return <div className="text-center mt-4 text-white">Chargement...</div>;
+    return <div className="text-center mt-4 text-white">Loading...</div>;
   }
 
   return (
     <div className="max-w-2xl mx-auto px-4">
       <h1 className="text-2xl font-bold mt-4 mb-4 text-white">
-        Utilisateurs bloqués
+        Blocked Users
       </h1>
       {blockedUsers.length === 0 ? (
-        <p className="text-white">Aucun utilisateur bloqué.</p>
+        <p className="text-white">No blocked users.</p>
       ) : (
         <ul>
           {blockedUsers.map((user, index) => (
@@ -78,9 +78,9 @@ const BlockedUsers: React.FC = () => {
                 />
                 <span className="text-white">{user.username}</span>
               </div>
-              {/* Utilisation du variant "success" en taille "small" pour débloquer */}
+              {/* Using the "success" variant in "small" size to unblock */}
               <Button
-                text="Débloquer"
+                text="Unblock"
                 onClick={() => handleUnblock(user.username)}
                 variant="success"
                 size="small"

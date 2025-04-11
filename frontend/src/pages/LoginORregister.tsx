@@ -1,47 +1,47 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import Button from "../ui/Button";
-import {useCheckToken} from "../components/Checker"; // Adapté selon votre arborescence
+import {useCheckToken} from "../components/Checker"; // Adapted according to your structure
 
 function Landing() {
   useCheckToken();
 
   return (
     <div className="min-h-screen bg-[#17202A] text-white flex flex-col items-center justify-center p-4">
-      {/* Titre principal */}
+      {/* Main Title */}
       <h1 className="text-2xl font-bold mb-6 text-center max-w-md">
-        Découvrez ce qui se passe dans le monde en temps réel.
+        Discover what's happening in the world in real time.
       </h1>
 
-      {/* Bouton "Créez un compte" */}
+      {/* "Create an account" Button */}
       
-        <Button page="/register" text="Créez un compte" />
+        <Button page="/register" text="Create an account" />
 
-      {/* Mentions légales */}
+      {/* Legal Notice */}
       <div className="mt-6 text-gray-400 text-sm text-center max-w-sm leading-relaxed">
         <p>
-          En vous inscrivant, vous acceptez nos{" "}
+          By signing up, you agree to our{" "}
           <Link to="/terms" className="text-[#1DA1F2] hover:underline">
-            conditions d’utilisation
+            Terms of Service
           </Link>
-          , notre{" "}
+          , our{" "}
           <Link to="/privacy" className="text-[#1DA1F2] hover:underline">
-            Politique de confidentialité
+            Privacy Policy
           </Link>{" "}
-          et notre{" "}
+          and our{" "}
           <Link to="/cookies" className="text-[#1DA1F2] hover:underline">
-            Utilisation des cookies
+            Cookie Policy
           </Link>
           .
         </p>
       </div>
 
-      {/* Lien pour se connecter */}
+      {/* Login Link */}
       <div className="mt-4 text-gray-400 text-sm">
         <p>
-          Vous avez déjà un compte ?{" "}
+          Already have an account?{" "}
           <Link to="/login" className="text-[#1DA1F2] hover:underline">
-            Connectez-vous
+            Log in
           </Link>
         </p>
       </div>

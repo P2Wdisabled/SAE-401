@@ -10,16 +10,16 @@ import { updateUser } from "../api/updateUser";
 function AdminEdit() {
   useCheckToken();
 
-  const { id } = useParams<{ id: string }>(); // L'ID est une chaîne de caractères
+  const { id } = useParams<{ id: string }>(); // The ID is a string
 
-  // États pour stocker les informations de l'utilisateur et le statut de la requête
+  // States to store user information and query status
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Récupérer les informations de l'utilisateur par son id via le module getUser
+  // Retrieve user information by id using the getUser module
   useEffect(() => {
     if (!id) return;
     const token = localStorage.getItem("token");
@@ -32,28 +32,28 @@ function AdminEdit() {
       })
       .catch((err) => {
         console.error(err);
-        setError("Erreur lors de la récupération de l'utilisateur.");
+        setError("Error retrieving the user.");
       });
   }, [id]);
 
-  // Fonction pour mettre à jour l'utilisateur via le module updateUser
+  // Function to update the user using the updateUser module
   const handleSubmit = async () => {
     setLoading(true);
     setError("");
     setSuccess("");
     const token = localStorage.getItem("token");
     if (!token || !id) {
-      setError("Utilisateur non authentifié.");
+      setError("User not authenticated.");
       setLoading(false);
       return;
     }
     const payload = { username, email };
     try {
       await updateUser(token, id, payload);
-      setSuccess("Utilisateur mis à jour avec succès.");
+      setSuccess("User updated successfully.");
     } catch (err) {
       console.error(err);
-      setError("Erreur lors de la mise à jour de l'utilisateur.");
+      setError("Error updating the user.");
     } finally {
       setLoading(false);
     }
@@ -61,11 +61,11 @@ function AdminEdit() {
 
   return (
     <div className="p-4">
-      <h2 className="text-white mb-4">Modification du compte : {id}</h2>
+      <h2 className="text-white mb-4">Edit Account: {id}</h2>
       {error && <p className="text-red-500 mb-4">{error}</p>}
       {success && <p className="text-green-500 mb-4">{success}</p>}
       <FormInput
-        label="Nom d'utilisateur"
+        label="Username"
         type="text"
         value={username}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
@@ -76,8 +76,8 @@ function AdminEdit() {
         value={email}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
       />
-      <Button text="Confirmer les modifications" onClick={handleSubmit} />
-      {loading && <p className="text-white mt-4">Mise à jour en cours...</p>}
+      <Button text="Confirm changes" onClick={handleSubmit} />
+      {loading && <p className="text-white mt-4">Updating...</p>}
     </div>
   );
 }

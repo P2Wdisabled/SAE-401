@@ -19,39 +19,39 @@ class AccessTokenAuthenticator extends AbstractAuthenticator
 
     public function supports(Request $request): ?bool
     {
-        // On cherche le header Authorization contenant "Bearer {token}"
+        // Look for the Authorization header containing "Bearer {token}"
         return $request->headers->has('Authorization') && 0 === strpos($request->headers->get('Authorization'), 'Bearer ');
     }
 
     public function authenticate(Request $request): SelfValidatingPassport
     {
         $authHeader = $request->headers->get('Authorization');
-        $rawToken = substr($authHeader, 7); // Supprime "Bearer "
+        $rawToken = substr($authHeader, 7); // Remove "Bearer "
         $hashedToken = hash('sha256', $rawToken);
         
-        // Recherche du token en base
+        // Search for the token in the database
         $apiToken = $this->apiTokenRepository->findOneBy(['token' => $hashedToken]);
         if (!$apiToken) {
-            throw new CustomUserMessageAuthenticationException('Token invalide.');
+            throw new CustomUserMessageAuthenticationException('Invalid token.');
         }
         
-        // Vérification de l'expiration
+        // Check for expiration
         if ($apiToken->getExpiresAt() < new \DateTimeImmutable()) {
-            throw new CustomUserMessageAuthenticationException('Token expiré.');
+            throw new CustomUserMessageAuthenticationException('Expired token.');
         }
         
-        // Retourne un Passport avec le UserBadge qui utilisera, par exemple, l'email comme identifiant
+        // Return a Passport with the UserBadge that will use, for example, the email as the identifier
         return new SelfValidatingPassport(new UserBadge($apiToken->getUser()->getEmail()));
     }
 
     public function onAuthenticationSuccess(Request $request, $token, string $firewallName): ?Response
     {
-        // En cas de succès, la requête continue normalement
+        // On success, the request continues as normal
         return null;
     }
 
     public function onAuthenticationFailure(Request $request, \Throwable $exception): ?Response
     {
-        return new Response('Accès refusé : ' . $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+        return new Response('Access denied: ' . $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
     }
 }

@@ -23,7 +23,7 @@ const CensorDashboard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  // Fonction pour charger les posts via l'API
+  // Function to load posts via the API
   const fetchPosts = () => {
     setLoading(true);
     const token = localStorage.getItem("token");
@@ -47,7 +47,7 @@ const CensorDashboard: React.FC = () => {
     fetchPosts();
   }, [search, navigate]);
 
-  // Bascule la censure d'un post
+  // Toggle the censorship of a post
   const toggleCensor = async (postId: number) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -63,11 +63,11 @@ const CensorDashboard: React.FC = () => {
       );
     } catch (error) {
       console.error(error);
-      alert("Erreur lors de la censure");
+      alert("Error toggling censorship");
     }
   };
 
-  // Supprime un post
+  // Delete a post
   const deletePost = async (postId: number) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -79,19 +79,19 @@ const CensorDashboard: React.FC = () => {
       setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
     } catch (error) {
       console.error(error);
-      alert("Erreur lors de la suppression du post");
+      alert("Error deleting the post");
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto p-4">
       <h2 className="text-2xl text-white mb-4">
-        Dashboard Admin - Gestion des contenus
+        Admin Dashboard - Content Management
       </h2>
       <div className="mb-4">
         <input
           type="text"
-          placeholder="Rechercher..."
+          placeholder="Search..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="p-2 rounded w-full"
@@ -99,7 +99,7 @@ const CensorDashboard: React.FC = () => {
       </div>
       {error && <p className="text-red-500 mb-4">{error}</p>}
       {loading ? (
-        <p className="text-white">Chargement...</p>
+        <p className="text-white">Loading...</p>
       ) : (
         <div className="space-y-4">
           {posts.map(post => (
@@ -108,13 +108,13 @@ const CensorDashboard: React.FC = () => {
                 <p className="font-bold">{post.username}</p>
                 <div className="flex space-x-2">
                   <Button
-                    text={post.censored ? "Décensurer" : "Censurer"}
+                    text={post.censored ? "Uncensor" : "Censor"}
                     onClick={() => toggleCensor(post.id)}
                     variant="danger"
                     size="small"
                   />
                   <Button
-                    text="Supprimer"
+                    text="Delete"
                     onClick={() => deletePost(post.id)}
                     variant="secondary"
                     size="small"
@@ -124,7 +124,7 @@ const CensorDashboard: React.FC = () => {
               <div className="mt-2">
                 {post.censored ? (
                   <p className="italic">
-                    Ce message enfreint les conditions d’utilisation de la plateforme
+                    This message violates the platform's terms of use
                   </p>
                 ) : (
                   <p>{post.content}</p>
@@ -134,7 +134,7 @@ const CensorDashboard: React.FC = () => {
                 <div className="mt-2 flex space-x-4">
                   <span>Likes: {post.likeCount}</span>
                   {post.replies && post.replies.length > 0 && (
-                    <span>Réponses: {post.replies.length}</span>
+                    <span>Replies: {post.replies.length}</span>
                   )}
                 </div>
               )}
