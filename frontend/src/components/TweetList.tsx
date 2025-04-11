@@ -30,7 +30,7 @@ function TweetList({ activeTab }: TweetListProps) {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
-  const refreshInterval = 30; // secondes
+  const refreshInterval = 5; // secondes
 
   const [searchText, setSearchText] = useState("");
   const debouncedSearchText = useDebounce(searchText, 500);
