@@ -1,6 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { cva } from "class-variance-authority";
+import { toggleLike } from "../api/toggleLike";
+import { retweet } from "../api/retweet";
+import { deleteTweet } from "../api/deleteTweet";
+import { editTweet } from "../api/editTweet";
+import { replyTweet } from "../api/replyTweet";
+import { lockTweet } from "../api/lockTweet";
+import { unlockTweet } from "../api/unlockTweet";
+import { uploadFile } from "../api/uploadFile";
 
 // Définition des styles avec CVA
 const tweetContainer = cva("flex flex-col gap-2 py-3 border-b border-gray-600");
@@ -54,7 +62,8 @@ const controlButton = cva("px-3 py-1 text-white rounded transition", {
 // Bouton ou icône cliquable
 const clickableIcon = cva("flex items-center gap-1 cursor-pointer");
 
-type TweetProps = {
+
+export type TweetProps = {
   tweetId: number;
   author: string;
   content: string;
@@ -95,6 +104,7 @@ const parseContent = (text: string): React.ReactNode[] => {
   });
 };
 
+
 const Tweet: React.FC<TweetProps> = ({
   tweetId,
   author,
@@ -110,38 +120,28 @@ const Tweet: React.FC<TweetProps> = ({
   locked = false,
   onDelete,
 }) => {
-  const [liked, setLiked] = useState<boolean>(initialLiked);
-  const [likeCount, setLikeCount] = useState<number>(initialLikeCount);
-  const [retweetCount, setRetweetCount] = useState<number>(initialRetweetCount);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editContent, setEditContent] = useState<string>(content);
-  const [editMedia, setEditMedia] = useState<string[]>(media);
+  const [liked, setLiked] = useState(initialLiked);
+  const [likeCount, setLikeCount] = useState(initialLikeCount);
+  const [retweetCount, setRetweetCount] = useState(initialRetweetCount);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(content);
+  const [editMedia, setEditMedia] = useState(media);
   const [newMediaFiles, setNewMediaFiles] = useState<File[]>([]);
-  const [showReplyForm, setShowReplyForm] = useState<boolean>(false);
-  const [replyContent, setReplyContent] = useState<string>("");
-  const [localReplies, setLocalReplies] = useState<any[]>(replies);
-  const [actionError, setActionError] = useState<string>("");
-  const [isLockedState, setIsLockedState] = useState<boolean>(locked);
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyContent, setReplyContent] = useState("");
+  const [localReplies, setLocalReplies] = useState(replies);
+  const [actionError, setActionError] = useState("");
+  const [isLockedState, setIsLockedState] = useState(locked);
   const navigate = useNavigate();
 
-  const toggleLike = async () => {
+  const token = localStorage.getItem("token");
+
+  const handleToggleLike = async () => {
+    if (!token) return;
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/like`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token,
-        },
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        setActionError(data.error || "Erreur lors du toggle like");
-        return;
-      }
-      const data = await response.json();
-      setLiked(data.liked);
-      setLikeCount(data.likeCount);
+      const { liked, likeCount } = await toggleLike(token, tweetId);
+      setLiked(liked);
+      setLikeCount(likeCount);
       setActionError("");
     } catch (error) {
       console.error("Erreur lors du toggle like", error);
@@ -150,26 +150,12 @@ const Tweet: React.FC<TweetProps> = ({
   };
 
   const handleRetweet = async () => {
-    const token = localStorage.getItem("token");
+    if (!token) return;
     const comment = window.prompt("Ajouter un commentaire (optionnel) pour retweeter :");
     try {
-      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/retweet`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token,
-        },
-        body: JSON.stringify({ comment }),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        setActionError(data.error || "Erreur lors du retweet");
-        return;
-      }
-      const data = await response.json();
-      if (data.retweet && data.retweet.retweetCount !== undefined) {
-        setRetweetCount(data.retweet.retweetCount);
-      }
+      const commentToSend: string | undefined = comment === null ? undefined : comment;
+      const { retweetCount } = await retweet(token, tweetId, commentToSend);
+      setRetweetCount(retweetCount);
       alert("Retweet effectué avec succès !");
       setActionError("");
     } catch (error) {
@@ -180,19 +166,9 @@ const Tweet: React.FC<TweetProps> = ({
 
   const handleDelete = async () => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce tweet ?")) return;
+    if (!token) return;
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: "Bearer " + token,
-        },
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        setActionError(data.error || "Erreur lors de la suppression du tweet");
-        return;
-      }
+      await deleteTweet(token, tweetId);
       if (onDelete) onDelete();
       setActionError("");
     } catch (error) {
@@ -202,51 +178,24 @@ const Tweet: React.FC<TweetProps> = ({
   };
 
   const handleEditSave = async () => {
-    const token = localStorage.getItem("token");
+    if (!token) return;
     let uploadedMediaUrls: string[] = [];
     for (const file of newMediaFiles) {
-      const formData = new FormData();
-      formData.append("file", file);
       try {
-        const response = await fetch("http://localhost:8080/api/upload", {
-          method: "POST",
-          headers: {
-            Authorization: "Bearer " + token,
-          },
-          body: formData,
-        });
-        if (!response.ok) {
-          const data = await response.json();
-          console.error("Erreur lors de l'upload d'un fichier:", data.error);
-          continue;
-        }
-        const data = await response.json();
-        uploadedMediaUrls.push(data.url);
+        const url = await uploadFile(file, token);
+        uploadedMediaUrls.push(url);
       } catch (error) {
-        console.error("Erreur lors de l'upload :", error);
+        console.error("Erreur lors de l'upload d'un fichier:", error);
       }
     }
     const updatedMedia = [...editMedia, ...uploadedMediaUrls];
     try {
-      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token,
-        },
-        body: JSON.stringify({ content: editContent, media: updatedMedia }),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        setActionError(data.error || "Erreur lors de la mise à jour du tweet");
-        return;
-      }
-      const data = await response.json();
-      setEditMedia(data.post.media);
+      const updatedPost = await editTweet(token, tweetId, { content: editContent, media: updatedMedia });
+      setEditMedia(updatedPost.media);
       setIsEditing(false);
       setActionError("");
     } catch (error) {
-      console.error("Erreur lors de la mise à jour :", error);
+      console.error("Erreur lors de la mise à jour du tweet", error);
       setActionError("Erreur lors de la mise à jour du tweet");
     }
   };
@@ -280,23 +229,10 @@ const Tweet: React.FC<TweetProps> = ({
       setActionError("Les réponses sont verrouillées pour ce post.");
       return;
     }
-    const token = localStorage.getItem("token");
+    if (!token) return;
     try {
-      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/reply`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token,
-        },
-        body: JSON.stringify({ content: replyContent, media: [] }),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        setActionError(data.error || "Erreur lors de l'envoi de la réponse");
-        return;
-      }
-      const data = await response.json();
-      setLocalReplies((prev) => [...prev, data]);
+      const replyData = await replyTweet(token, tweetId, { content: replyContent, media: [] });
+      setLocalReplies((prev) => [...prev, replyData]);
       setReplyContent("");
       setShowReplyForm(false);
       setActionError("");
@@ -307,20 +243,9 @@ const Tweet: React.FC<TweetProps> = ({
   };
 
   const handleLock = async () => {
+    if (!token) return;
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/lock`, {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + token,
-        },
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        setActionError(data.error || "Erreur lors du verrouillage");
-        return;
-      }
-      await response.json();
+      await lockTweet(token, tweetId);
       setIsLockedState(true);
       setActionError("");
     } catch (error) {
@@ -330,20 +255,9 @@ const Tweet: React.FC<TweetProps> = ({
   };
 
   const handleUnlock = async () => {
+    if (!token) return;
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:8080/api/posts/${tweetId}/unlock`, {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + token,
-        },
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        setActionError(data.error || "Erreur lors du déverrouillage");
-        return;
-      }
-      await response.json();
+      await unlockTweet(token, tweetId);
       setIsLockedState(false);
       setActionError("");
     } catch (error) {
@@ -450,7 +364,7 @@ const Tweet: React.FC<TweetProps> = ({
             </>
           )}
           <div className="flex items-center gap-4 mt-2">
-            <div onClick={toggleLike} className={clickableIcon()}>
+            <div onClick={handleToggleLike} className={clickableIcon()}>
               {liked ? (
                 <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
@@ -519,7 +433,7 @@ const Tweet: React.FC<TweetProps> = ({
                   <svg width="20" height="24" viewBox="0 0 20 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <g clipPath="url(#clip0_410_1372)">
                       <path
-                        d="M0 22C0 22.5304 0.210714 23.0391 0.585786 23.4142C0.960859 23.7893 1.46957 24 2 24H18C18.5304 24 19.0391 23.7893 19.4142 23.4142C19.7893 23.0391 20 22.5304 20 22V12C20 11.4695 19.7893 10.9608 19.4142 10.5858C19.0391 10.2107 18.5304 9.99998 18 9.99998H6V6.49998C6 5.43911 6.42143 4.4217 7.17157 3.67157C7.92172 2.92143 8.93913 2.5 10 2.5C11.0609 2.5 12.0783 2.92143 12.8284 3.67157C13.5786 4.4217 14 5.43913 14 6.5V10H6ZM8 15.5C8.00007 15.1535 8.09016 14.813 8.26143 14.5118C8.43269 14.2106 8.67927 13.9591 8.97699 13.7819C9.27472 13.6046 9.61337 13.5078 9.95978 13.5008C10.3062 13.4939 10.6485 13.577 10.9531 13.7421C11.2577 13.9072 11.5142 14.1486 11.6974 14.4427C11.8807 14.7368 11.9844 15.0734 11.9984 15.4196C12.0124 15.7658 11.9362 16.1097 11.7773 16.4176C11.6184 16.7255 11.3823 16.9868 11.092 17.176L11.084 17.181C11.084 17.181 11.279 18.361 11.499 19.751V19.752C11.4987 19.9505 11.4197 20.1409 11.2793 20.2813C11.1389 20.4217 10.9486 20.5007 10.75 20.501H9.248C9.04943 20.5007 8.85908 20.4217 8.71867 20.2813C8.57826 20.1409 8.49926 19.9505 8.499 19.752V19.751L8.914 17.181C8.63309 16.9998 8.40207 16.7511 8.24205 16.4576C8.08203 16.1642 7.99813 15.8353 7.998 15.501L8 15.5Z"
+                        d="M0 22C0 22.5304 0.210714 23.0391 0.585786 23.4142C0.960859 23.7893 1.46957 24 2 24H18C18.5304 24 19.0391 23.7893 19.4142 23.4142C19.7893 23.0391 20 22.5304 20 22V12C20 11.4695 19.7893 10.9608 19.4142 10.5858C19.0391 10.2107 18.5304 9.99998 18 9.99998H6V6.49998C6 5.43911 6.42143 4.4217 7.17157 3.67157C7.92172 2.92143 8.93913 2.5 10 2.5C11.0609 2.5 12.0783 2.92143 12.8284 3.67157C13.5786 4.4217 14 5.43913 14 6.5V10H6ZM8 15.5C8.00007 15.1535 8.09016 14.813 8.26143 14.5118C8.43269 14.2106 8.67927 13.9591 8.97699 13.7819C9.27472 13.6046 9.61337 13.5078 9.95978 13.5008C10.3062 13.4939 10.6485 13.577 10.9531 13.7421C11.2577 13.9072 11.5142 14.1486 11.6974 14.4427C11.8807 14.7368 11.9844 15.0734 11.9984 15.4196C12.0124 15.7658 11.9362 16.1097 11.7773 16.4176C11.6184 16.7255 11.3823 16.9868 11.092 17.176L11.084 17.181C11.084 17.181 11.279 18.361 11.499 19.751V19.752C11.4987 19.9506 11.4197 20.1409 11.2793 20.2813C11.1389 20.4217 10.9486 20.5007 10.75 20.501H9.248C9.04943 20.5007 8.85908 20.4217 8.71867 20.2813C8.57826 20.1409 8.49926 19.9506 8.499 19.752V19.751L8.914 17.181C8.63309 16.9998 8.40207 16.7511 8.24205 16.4577C8.08203 16.1642 7.99813 15.8353 7.998 15.501L8 15.5Z"
                         fill="black"
                       />
                     </g>
