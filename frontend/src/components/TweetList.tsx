@@ -158,9 +158,8 @@ function TweetList({ activeTab }: TweetListProps) {
 
   return (
     <main className="px-4 pb-16">
-      {/* Bouton vers /admin/censor en haut à droite */}
       <div className="absolute flex justify-end my-4 top-1/6 right-4">
-        <Button page="/admin/censor" text="Censure" variant="outline" />
+        <Button page="/admin" text="admin" variant="outline" />
       </div>
       
       <div className="flex flex-col gap-4 my-4">
