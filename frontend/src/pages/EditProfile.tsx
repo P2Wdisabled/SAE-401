@@ -1,4 +1,3 @@
-// src/components/EditProfile.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
@@ -18,7 +17,7 @@ const EditProfile: React.FC = () => {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
-  // Fonction pour uploader un fichier via le module API uploadFile
+  // Fonction d'upload d'un fichier
   const handleUploadFile = async (file: File, setter: (url: string) => void) => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -31,14 +30,12 @@ const EditProfile: React.FC = () => {
   };
 
   // Dropzone pour la photo de profil
-  const onDropProfile = useCallback(
-    (acceptedFiles: File[]) => {
-      if (acceptedFiles.length === 0) return;
-      const file = acceptedFiles[0];
-      handleUploadFile(file, setProfilePicture);
-    },
-    []
-  );
+  const onDropProfile = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+    const file = acceptedFiles[0];
+    handleUploadFile(file, setProfilePicture);
+  }, []);
+
   const {
     getRootProps: getProfileRootProps,
     getInputProps: getProfileInputProps,
@@ -50,14 +47,12 @@ const EditProfile: React.FC = () => {
   });
 
   // Dropzone pour la bannière
-  const onDropBanner = useCallback(
-    (acceptedFiles: File[]) => {
-      if (acceptedFiles.length === 0) return;
-      const file = acceptedFiles[0];
-      handleUploadFile(file, setBanner);
-    },
-    []
-  );
+  const onDropBanner = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+    const file = acceptedFiles[0];
+    handleUploadFile(file, setBanner);
+  }, []);
+
   const {
     getRootProps: getBannerRootProps,
     getInputProps: getBannerInputProps,
@@ -68,7 +63,7 @@ const EditProfile: React.FC = () => {
     multiple: false,
   });
 
-  // Récupération des informations actuelles du profil
+  // Récupération des infos actuelles du profil
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -87,7 +82,7 @@ const EditProfile: React.FC = () => {
       .catch((err) => console.error(err));
   }, [navigate]);
 
-  // Soumission du formulaire pour mettre à jour le profil
+  // Soumission du formulaire
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
@@ -97,7 +92,7 @@ const EditProfile: React.FC = () => {
       await updateProfile(token, payload);
       setMessage("Profil mis à jour avec succès.");
       setTimeout(() => {
-        navigate(-1); // Retour à la page précédente
+        navigate(-1);
       }, 2000);
     } catch (error: any) {
       console.error(error);
@@ -110,12 +105,13 @@ const EditProfile: React.FC = () => {
       <h1 className="text-2xl font-bold text-white mb-4">Modifier le profil</h1>
       {message && <p className="text-green-500 mb-4">{message}</p>}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {/* On fixe la largeur en passant la variante "full" */}
         <FormInput
           label="Bio"
           type="text"
-          moreClasses="w-full"
+          size="full"
           value={bio}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBio(e.target.value)}
+          onChange={(e) => setBio(e.target.value)}
         />
         {/* Zone de drop pour la photo de profil */}
         <div
@@ -158,23 +154,19 @@ const EditProfile: React.FC = () => {
         <FormInput
           label="Localisation"
           type="text"
+          size="full"
           value={location}
-          moreClasses="w-full"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocation(e.target.value)}
+          onChange={(e) => setLocation(e.target.value)}
         />
         <FormInput
           label="Site web"
           type="url"
+          size="full"
           value={website}
-          moreClasses="w-full"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWebsite(e.target.value)}
+          onChange={(e) => setWebsite(e.target.value)}
         />
-        <Button
-          text="Enregistrer"
-          buttonType="submit"
-          bg="bg-blue-500"
-          moreClasses="text-white px-4 py-2 rounded"
-        />
+        {/* Bouton sans passage de moreClasses, on utilise la variante "primary" */}
+        <Button text="Enregistrer" buttonType="submit" variant="primary" />
       </form>
     </div>
   );

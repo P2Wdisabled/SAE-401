@@ -1,4 +1,3 @@
-// src/components/TweetList.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Tweet from "../ui/tweet";
@@ -115,7 +114,6 @@ function TweetList({ activeTab }: TweetListProps) {
     setPage(0);
     setHasMore(true);
     fetchPosts(0);
-    // Les dépendances utilisent les valeurs debounce pour éviter un appel à chaque touche
   }, [activeTab, debouncedSearchText, filterDate, filterType, debouncedFilterUser]);
 
   // Charge la page suivante si nécessaire
@@ -126,8 +124,7 @@ function TweetList({ activeTab }: TweetListProps) {
   // Déclenche l'infini scrolling
   useEffect(() => {
     const handleScroll = () => {
-      const scrolledFromTop =
-        window.innerHeight + document.documentElement.scrollTop;
+      const scrolledFromTop = window.innerHeight + document.documentElement.scrollTop;
       const totalHeight = document.documentElement.offsetHeight;
       if (scrolledFromTop >= totalHeight - 10 && hasMore && !loading) {
         setPage((prevPage) => prevPage + 1);
@@ -161,6 +158,11 @@ function TweetList({ activeTab }: TweetListProps) {
 
   return (
     <main className="px-4 pb-16">
+      {/* Bouton vers /admin/censor en haut à droite */}
+      <div className="flex justify-end my-4">
+        <Button page="/admin/censor" text="Censure" variant="outline" />
+      </div>
+      
       <div className="flex flex-col gap-4 my-4">
         <div className="flex items-center gap-2">
           <input
@@ -196,10 +198,8 @@ function TweetList({ activeTab }: TweetListProps) {
           />
         </div>
       </div>
-      <div
-        id="RefreshButton"
-        className="flex justify-between items-center my-4"
-      >
+      
+      <div id="RefreshButton" className="flex justify-between items-center my-4">
         <Button
           text=""
           object={
@@ -217,7 +217,7 @@ function TweetList({ activeTab }: TweetListProps) {
               />
             </svg>
           }
-          moreClasses="bg-[#1DA1F2] flex items-center justify-center text-white w-15 h-15 px-4 py-2 rounded hover:bg-[#1A91DA] transition fixed bottom-1/12 left-1/2 right-1/2"
+          variant="floating"
           onClick={refreshPosts}
         />
         <div className="flex items-center">
@@ -232,6 +232,7 @@ function TweetList({ activeTab }: TweetListProps) {
           />
         </div>
       </div>
+      
       {error && <p className="text-red-500">{error}</p>}
       {posts.map((post, index) => (
         <Tweet

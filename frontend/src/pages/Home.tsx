@@ -43,14 +43,7 @@ function Home() {
       <TweetList activeTab={activeTab} />
 
       {/* Bouton flottant (nouveau Tweet) */}
-      <Button
-        text="+"
-        page="/post"
-        moreClasses="w-12 h-12 rounded-full bg-[#1DA1F2] text-white text-2xl 
-                   flex items-center justify-center 
-                   absolute bottom-8 right-8 
-                   hover:bg-[#1A91DA] transition fixed"
-      />
+      <Button text="+" page="/post" variant="floating" />
     </>
   );
 }

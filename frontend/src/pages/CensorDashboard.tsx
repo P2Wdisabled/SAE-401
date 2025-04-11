@@ -1,4 +1,3 @@
-// src/pages/CensorDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
@@ -111,12 +110,14 @@ const CensorDashboard: React.FC = () => {
                   <Button
                     text={post.censored ? "Décensurer" : "Censurer"}
                     onClick={() => toggleCensor(post.id)}
-                    moreClasses="bg-red-500 text-white px-3 py-1 rounded"
+                    variant="danger"
+                    size="small"
                   />
                   <Button
                     text="Supprimer"
                     onClick={() => deletePost(post.id)}
-                    moreClasses="bg-gray-700 text-white px-3 py-1 rounded"
+                    variant="secondary"
+                    size="small"
                   />
                 </div>
               </div>

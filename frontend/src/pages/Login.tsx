@@ -67,14 +67,14 @@ function Login() {
           <Button 
             page="/landing" 
             text="Retour" 
-            bg="bg-transparent" 
-            moreClasses="px-4 py-2 border border-gray-500 rounded-full text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 active:bg-gray-600 transition"
+            variant="outline"
+            size="small"
           />
           <Button 
             text="Se connecter" 
             buttonType="submit" 
-            bg="bg-white" 
-            moreClasses="px-4 py-2 rounded-full text-black font-semibold hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-200 active:bg-gray-300 transition"
+            variant="white" 
+            size="small"
           />
         </div>
       </form>

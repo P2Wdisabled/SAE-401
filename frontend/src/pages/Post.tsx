@@ -82,16 +82,17 @@ function Post() {
   return (
     <div className="bg-[#17202A] min-h-screen text-white flex flex-col">
       <header className="flex items-center justify-between p-4 border-b border-gray-700">
+        {/* Bouton de fermeture avec la variante "icon" */}
         <Button
           page="/"
           text="&#10005;"
-          bg="transparent"
-          moreClasses="text-2xl hover:bg-gray-800 p-2 rounded-full"
+          variant="icon"
         />
+        {/* Bouton pour poster avec la variante "primary" et taille "small" */}
         <Button
           text="Poster"
-          bg="bg-primary"
-          moreClasses="px-4 py-2 rounded-full font-semibold hover:bg-[#1A91DA] transition"
+          variant="primary"
+          size="small"
           onClick={handleSubmit}
         />
       </header>

@@ -1,4 +1,3 @@
-// src/pages/BlockedUsers.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
@@ -54,12 +53,14 @@ const BlockedUsers: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center mt-4">Chargement...</div>;
+    return <div className="text-center mt-4 text-white">Chargement...</div>;
   }
 
   return (
     <div className="max-w-2xl mx-auto px-4">
-      <h1 className="text-2xl font-bold mt-4 mb-4 text-white">Utilisateurs bloqués</h1>
+      <h1 className="text-2xl font-bold mt-4 mb-4 text-white">
+        Utilisateurs bloqués
+      </h1>
       {blockedUsers.length === 0 ? (
         <p className="text-white">Aucun utilisateur bloqué.</p>
       ) : (
@@ -77,10 +78,12 @@ const BlockedUsers: React.FC = () => {
                 />
                 <span className="text-white">{user.username}</span>
               </div>
+              {/* Utilisation du variant "success" en taille "small" pour débloquer */}
               <Button
                 text="Débloquer"
                 onClick={() => handleUnblock(user.username)}
-                moreClasses="bg-green-500 text-white px-4 py-2 rounded"
+                variant="success"
+                size="small"
               />
             </li>
           ))}

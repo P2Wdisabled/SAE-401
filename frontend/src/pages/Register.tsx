@@ -1,7 +1,7 @@
-// src/components/Register.tsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import FormInput from "../ui/FormInput";
+import Button from "../ui/Button";
 import { useCheckToken } from "../components/Checker";
 import { isEmailValid } from "../utils/isEmailValid";
 import { isPasswordValid } from "../utils/isPasswordValid";
@@ -16,7 +16,7 @@ function Register() {
   useCheckToken();
   const navigate = useNavigate();
 
-  // Gestion de la soumission du formulaire
+  // Soumission du formulaire
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -43,7 +43,7 @@ function Register() {
     }
   };
 
-  // Mise à jour du mot de passe et de sa force en temps réel
+  // Gestion en temps réel de la force du mot de passe
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const pwd = e.target.value;
     setPassword(pwd);
@@ -75,7 +75,7 @@ function Register() {
           value={password}
           onChange={handlePasswordChange}
         />
-        
+
         {password && (
           <div className="text-sm">
             Force du mot de passe : <span>{passwordStrength}</span>
@@ -83,20 +83,8 @@ function Register() {
         )}
 
         <div className="flex w-full max-w-sm justify-between">
-          <Link to="/landing">
-            <button
-              type="button"
-              className="px-4 py-2 border border-gray-500 rounded-full hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 active:bg-gray-600 transition"
-            >
-              Retour
-            </button>
-          </Link>
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-full bg-white text-black font-semibold hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-200 active:bg-gray-300 transition"
-          >
-            S'inscrire
-          </button>
+          <Button page="/landing" buttonType="button" variant="outline" size="small" text="Retour" />
+          <Button buttonType="submit" variant="white" size="small" text="S'inscrire" />
         </div>
       </form>
     </div>
