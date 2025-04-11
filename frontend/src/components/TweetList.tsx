@@ -9,6 +9,20 @@ type TweetListProps = {
   activeTab: "pourVous" | "abonnements";
 };
 
+// Hook de debounce générique
+function useDebounce(value: string, delay: number): string {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  
+  return debouncedValue;
+}
+
 function TweetList({ activeTab }: TweetListProps) {
   const navigate = useNavigate();
   const [posts, setPosts] = useState<any[]>([]);
@@ -20,9 +34,12 @@ function TweetList({ activeTab }: TweetListProps) {
   const refreshInterval = 30; // secondes
 
   const [searchText, setSearchText] = useState("");
+  const debouncedSearchText = useDebounce(searchText, 500);
+  
   const [filterDate, setFilterDate] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterUser, setFilterUser] = useState("");
+  const debouncedFilterUser = useDebounce(filterUser, 500);
 
   // Fonction générique pour récupérer les posts (en fonction de la page)
   const fetchPosts = async (pageNum: number) => {
@@ -38,10 +55,10 @@ function TweetList({ activeTab }: TweetListProps) {
         token,
         pageNum,
         activeTab,
-        searchText,
+        debouncedSearchText,
         filterDate,
         filterType,
-        filterUser
+        debouncedFilterUser
       );
       setError("");
       const newPosts = data.posts;
@@ -72,10 +89,10 @@ function TweetList({ activeTab }: TweetListProps) {
         token,
         0,
         activeTab,
-        searchText,
+        debouncedSearchText,
         filterDate,
         filterType,
-        filterUser
+        debouncedFilterUser
       );
       setError("");
       const newPosts = data.posts;
@@ -98,7 +115,8 @@ function TweetList({ activeTab }: TweetListProps) {
     setPage(0);
     setHasMore(true);
     fetchPosts(0);
-  }, [activeTab, searchText, filterDate, filterType, filterUser]);
+    // Les dépendances utilisent les valeurs debounce pour éviter un appel à chaque touche
+  }, [activeTab, debouncedSearchText, filterDate, filterType, debouncedFilterUser]);
 
   // Charge la page suivante si nécessaire
   useEffect(() => {
@@ -108,7 +126,8 @@ function TweetList({ activeTab }: TweetListProps) {
   // Déclenche l'infini scrolling
   useEffect(() => {
     const handleScroll = () => {
-      const scrolledFromTop = window.innerHeight + document.documentElement.scrollTop;
+      const scrolledFromTop =
+        window.innerHeight + document.documentElement.scrollTop;
       const totalHeight = document.documentElement.offsetHeight;
       if (scrolledFromTop >= totalHeight - 10 && hasMore && !loading) {
         setPage((prevPage) => prevPage + 1);
@@ -127,7 +146,7 @@ function TweetList({ activeTab }: TweetListProps) {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefreshEnabled, refreshInterval, activeTab, searchText, filterDate, filterType, filterUser]);
+  }, [autoRefreshEnabled, refreshInterval, activeTab, debouncedSearchText, filterDate, filterType, debouncedFilterUser]);
 
   const handleDelete = (tweetId: number) => {
     setPosts((prev) => prev.filter((tweet) => tweet.id !== tweetId));
@@ -177,7 +196,10 @@ function TweetList({ activeTab }: TweetListProps) {
           />
         </div>
       </div>
-      <div id="RefreshButton" className="flex justify-between items-center my-4">
+      <div
+        id="RefreshButton"
+        className="flex justify-between items-center my-4"
+      >
         <Button
           text=""
           object={

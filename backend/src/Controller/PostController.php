@@ -21,111 +21,134 @@ use Doctrine\ORM\EntityManagerInterface;
 class PostController extends AbstractController
 {
     #[Route('/api/posts', name: 'posts.index', methods: ['GET'], format: 'json')]
-    public function index(Request $request, PostRepository $postRepository): Response
-    {
-        $currentUser = $this->getUser();
-        $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
+public function index(Request $request, PostRepository $postRepository): Response
+{
+    $currentUser = $this->getUser();
+    $currentUserId = ($currentUser instanceof \App\Entity\User) ? $currentUser->getId() : null;
 
-        $page = $request->query->getInt('page', 1);
-        $count = 50;
-        $offset = max(0, ($page - 1) * $count);
+    // Récupérer les paramètres
+    // Vous pouvez définir page=0 par défaut si vous souhaitez que la pagination commence à 0
+    $page = $request->query->getInt('page', 0);
+    $count = 50;
+    $offset = max(0, $page * $count);
 
-        $filter = $request->query->get('filter');
-        if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
-            /** @var \App\Entity\User $currentUser */
-            $followedUsers = $currentUser->getFollowing()->toArray();
-            $followedUserIds = array_map(fn($user) => $user->getId(), $followedUsers);
-            $paginator = $postRepository->paginatePostsByUsers($followedUserIds, $offset, $count);
-        } else {
-            $paginator = $postRepository->paginateAllOrderedByLatest($offset, $count);
+    $filter = $request->query->get('filter');
+    $search = $request->query->get('search'); // recherche dans le contenu
+    $date = $request->query->get('date');     // filtre par date (format YYYY-MM-DD)
+    $type = $request->query->get('type');     // filtre sur le type ("text" ou "media")
+    $userParam = $request->query->get('user');  // filtre sur l'utilisateur
+
+    if ($filter === 'following' && $currentUser instanceof \App\Entity\User) {
+        /** @var \App\Entity\User $currentUser */
+        $followedUsers = $currentUser->getFollowing()->toArray();
+        $followedUserIds = array_map(fn($user) => $user->getId(), $followedUsers);
+        $paginator = $postRepository->paginatePostsByUsers(
+            $followedUserIds,
+            $offset,
+            $count,
+            $search,
+            $date,
+            $type,
+            $userParam
+        );
+    } else {
+        $paginator = $postRepository->paginateAllOrderedByLatest(
+            $offset,
+            $count,
+            $search,
+            $date,
+            $type,
+            $userParam
+        );
+    }
+
+    $totalPostsCount = $paginator->count();
+    $previousPage = $page > 0 ? $page - 1 : null;
+    $nextPage = (($page + 1) * $count < $totalPostsCount) ? $page + 1 : null;
+
+    // Récupération et formatage des posts pour la réponse JSON
+    $postsArray = [];
+    foreach ($paginator as $post) {
+        $author = $post->getUser();
+        if (!$author) {
+            continue;
         }
-
-        $totalPostsCount = $paginator->count();
-        $previousPage = $page > 1 ? $page - 1 : null;
-        $nextPage = (($page * $count) < $totalPostsCount) ? $page + 1 : null;
-
-        $postsArray = [];
-        foreach ($paginator as $post) {
-            $author = $post->getUser();
-            if (!$author) {
+        // Gestion des comptes privés et autres restrictions...
+        if ($author->getPrivate()) {
+            if (
+                !$currentUser instanceof \App\Entity\User ||
+                ($currentUser->getId() !== $author->getId() && !$currentUser->getFollowing()->contains($author))
+            ) {
                 continue;
             }
-            // Vérification du compte privé
-            if ($author->getPrivate()) {
-                if (
-                    !$currentUser instanceof \App\Entity\User ||
-                    ($currentUser->getId() !== $author->getId() && !$currentUser->getFollowing()->contains($author))
-                ) {
-                    continue;
-                }
-            }
-            
-            if ($post->getCensored()) {
-                $tweetData = [
-                    'id'             => $post->getId(),
-                    'username'       => $author->getUsername() ?? "Unnamed",
-                    'content'        => "Ce message enfreint les conditions d’utilisation de la plateforme",
-                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                    'likeCount'      => 0,
-                    'liked'          => false,
-                    'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
-                    'media'          => [],
-                    'replies'        => [],
-                    'censored'       => true,
-                    'locked'         => $post->isLocked(),
-                ];
-            } else {
-                $liked = false;
-                if ($currentUserId !== null) {
-                    foreach ($post->getLikes() as $like) {
-                        if ($like->getUser()->getId() === $currentUserId) {
-                            $liked = true;
-                            break;
-                        }
-                    }
-                }
-                $tweetData = [
-                    'id'             => $post->getId(),
-                    'username'       => $author->getUsername() ?? "Unnamed",
-                    'content'        => $author->getBlocked()
-                                        ? "Ce compte a été bloqué pour non respect des conditions d’utilisation"
-                                        : $post->getContent(),
-                    'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                    'likeCount'      => $author->getBlocked() ? 0 : $post->getLikesCount(),
-                    'retweetCount'   => $post->getRetweetCount(),
-                    'liked'          => $author->getBlocked() ? false : $liked,
-                    'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
-                    'media'          => $post->getMedia() ?: [],
-                    'censored'       => false,
-                    'locked'         => $post->isLocked(),
-                ];
-                if ($post->isLocked()) {
-                    // Si le tweet est verrouillé, ne pas renvoyer les réponses
-                    $tweetData['replies'] = [];
-                } else {
-                    $repliesArray = [];
-                    foreach ($post->getReplies() as $reply) {
-                        $repliesArray[] = [
-                            'id'             => $reply->getId(),
-                            'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
-                            'content'        => $reply->getContent(),
-                            'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
-                            'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
-                            'media'          => $reply->getMedia() ?: [],
-                        ];
-                    }
-                    $tweetData['replies'] = $repliesArray;
-                }
-            }
-            $postsArray[] = $tweetData;
         }
-
-        return $this->json([
-            'posts'         => $postsArray,
-            'previous_page' => $previousPage,
-            'next_page'     => $nextPage,
-        ]);
+        
+        if ($post->getCensored()) {
+            $tweetData = [
+                'id'             => $post->getId(),
+                'username'       => $author->getUsername() ?? "Unnamed",
+                'content'        => "Ce message enfreint les conditions d’utilisation de la plateforme",
+                'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'likeCount'      => 0,
+                'liked'          => false,
+                'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
+                'media'          => [],
+                'replies'        => [],
+                'censored'       => true,
+                'locked'         => $post->isLocked(),
+            ];
+        } else {
+            $liked = false;
+            if ($currentUserId !== null) {
+                foreach ($post->getLikes() as $like) {
+                    if ($like->getUser()->getId() === $currentUserId) {
+                        $liked = true;
+                        break;
+                    }
+                }
+            }
+            $tweetData = [
+                'id'             => $post->getId(),
+                'username'       => $author->getUsername() ?? "Unnamed",
+                'content'        => $author->getBlocked()
+                                    ? "Ce compte a été bloqué pour non respect des conditions d’utilisation"
+                                    : $post->getContent(),
+                'createdAt'      => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'likeCount'      => $author->getBlocked() ? 0 : $post->getLikesCount(),
+                'retweetCount'   => $post->getRetweetCount(),
+                'liked'          => $author->getBlocked() ? false : $liked,
+                'profilePicture' => $author->getProfilePicture() ?? 'default-profile.png',
+                'media'          => $post->getMedia() ?: [],
+                'censored'       => false,
+                'locked'         => $post->isLocked(),
+            ];
+            if ($post->isLocked()) {
+                $tweetData['replies'] = [];
+            } else {
+                $repliesArray = [];
+                foreach ($post->getReplies() as $reply) {
+                    $repliesArray[] = [
+                        'id'             => $reply->getId(),
+                        'username'       => $reply->getUser()->getUsername() ?? "Unnamed",
+                        'content'        => $reply->getContent(),
+                        'createdAt'      => $reply->getCreatedAt()->format('Y-m-d H:i:s'),
+                        'profilePicture' => $reply->getUser()->getProfilePicture() ?? 'default-profile.png',
+                        'media'          => $reply->getMedia() ?: [],
+                    ];
+                }
+                $tweetData['replies'] = $repliesArray;
+            }
+        }
+        $postsArray[] = $tweetData;
     }
+
+    return $this->json([
+        'posts'         => $postsArray,
+        'previous_page' => $previousPage,
+        'next_page'     => $nextPage,
+    ]);
+}
+
 
     #[Route('/api/posts/{id}/like', name: 'api_post_toggle_like', methods: ['POST'])]
     public function toggleLike(Post $post, EntityManagerInterface $em): JsonResponse

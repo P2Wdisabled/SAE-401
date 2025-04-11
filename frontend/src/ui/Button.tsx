@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 type ButtonProps = {
   page?: string;
-  text: string;
+  text?: string;
   bg?: string;
   buttonType?: "button" | "submit" | "reset";
   moreClasses?: string;
@@ -13,7 +13,7 @@ type ButtonProps = {
 
 function Button({
   page = "",
-  text,
+  text = "",
   bg = "bg-primary",
   buttonType = "button",
   moreClasses = "",
